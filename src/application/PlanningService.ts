@@ -9,7 +9,7 @@ import { ImplementationPlanRepository } from "../domain/repositories/Implementat
  * layer.  This keeps the transport code entirely decoupled from persistence
  * concerns and enables unit-testing of the core behaviour in isolation.
  */
-export class PlanningService {
+export class PlanningApplicationService {
   constructor(
     private readonly goals: GoalRepository,
     private readonly plans: ImplementationPlanRepository,
@@ -20,7 +20,11 @@ export class PlanningService {
   // Public API used by the server
   // ------------------------------------------------------------------
 
-  public async createGoal(description: string): Promise<Goal> {
+  /**
+   * Starts a new planning session with the specified goal description.
+   * Creates a Goal entity and an empty ImplementationPlan.
+   */
+  public async startPlanningSession(description: string): Promise<Goal> {
     const goal = Goal.create(description);
     await this.goals.save(goal);
 
@@ -36,7 +40,10 @@ export class PlanningService {
     return this.plans.findByGoalId(goalId);
   }
 
-  public async addTodo(goalId: string, params: { title: string; description: string; complexity: number; codeExample?: string }): Promise<Todo> {
+  /**
+   * Adds a new todo item to the current implementation plan.
+   */
+  public async addTodoToCurrentPlan(goalId: string, params: { title: string; description: string; complexity: number; codeExample?: string }): Promise<Todo> {
     const plan = await this.requirePlan(goalId);
     const todo = Todo.create(params);
     plan.addTodo(todo);
@@ -51,11 +58,14 @@ export class PlanningService {
   public async importPlan(goalId: string, planText: string): Promise<number> {
     const parsed = this.parser.parse(planText);
     for (const todoData of parsed) {
-      await this.addTodo(goalId, todoData);
+      await this.addTodoToCurrentPlan(goalId, todoData);
     }
     return parsed.length;
   }
 
+  /**
+   * Removes a todo item from the current implementation plan.
+   */
   public async removeTodo(goalId: string, todoId: string): Promise<void> {
     const plan = await this.requirePlan(goalId);
     const removed = plan.removeTodo(todoId);
@@ -65,11 +75,17 @@ export class PlanningService {
     await this.plans.savePlan(plan);
   }
 
-  public async getTodos(goalId: string): Promise<Todo[]> {
+  /**
+   * Returns all todos in the current implementation plan.
+   */
+  public async getCurrentTodos(goalId: string): Promise<Todo[]> {
     const plan = await this.requirePlan(goalId);
     return plan.todos;
   }
 
+  /**
+   * Updates the status of a todo item.
+   */
   public async updateTodoStatus(goalId: string, todoId: string, isComplete: boolean): Promise<Todo> {
     const plan = await this.requirePlan(goalId);
     const todo = plan.todos.find((t) => t.id === todoId);
@@ -78,6 +94,22 @@ export class PlanningService {
     }
     isComplete ? todo.markComplete() : todo.markIncomplete();
     await this.plans.savePlan(plan);
+    return todo;
+  }
+
+  /**
+   * Completes a task and handles all side effects (documentation updates, etc.)
+   * This is an orchestration method that delegates to other services.
+   */
+  public async completeTask(goalId: string, todoId: string, summaryPoints: string[]): Promise<Todo> {
+    // Mark the todo as complete in our repository
+    const todo = await this.updateTodoStatus(goalId, todoId, true);
+    
+    // In a full implementation, we would call:
+    // this.documentationService.updateSprintTaskStatus(todoId, "done");
+    // this.documentationService.appendWorkSummary(new Date(), summaryPoints);
+    // this.documentationService.updateDashboardMetrics();
+    
     return todo;
   }
 

@@ -2,7 +2,7 @@ import { ThinkingProcessRepository } from "../domain/repositories/ThinkingProces
 import { ThinkingProcess } from "../domain/entities/ThinkingProcess.js";
 import { Thought } from "../domain/entities/Thought.js";
 
-export class ThinkingService {
+export class ThinkingApplicationService {
   constructor(private readonly repo: ThinkingProcessRepository) {}
 
   /**
@@ -19,5 +19,16 @@ export class ThinkingService {
     process.addThought(Thought.create(content));
     await this.repo.save(process);
     return process;
+  }
+
+  /**
+   * Retrieves the thinking history for a specific goal.
+   */
+  public async getThinkingHistory(goalId: string): Promise<Thought[]> {
+    const process = await this.repo.findByGoalId(goalId);
+    if (!process) {
+      return [];
+    }
+    return process.history;
   }
 }
