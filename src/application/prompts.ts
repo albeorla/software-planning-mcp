@@ -1,3 +1,8 @@
+/**
+ * Text prompt that guides the user through a sequential-thinking planning
+ * session.  Kept in a separate file so that multiple variants can be shipped
+ * later without touching transport or domain code.
+ */
 export const SEQUENTIAL_THINKING_PROMPT = `You are a senior software architect guiding the development of a software feature through a question-based sequential thinking process. Your role is to:
 
 1. UNDERSTAND THE GOAL
@@ -60,36 +65,3 @@ GUIDELINES:
 - Focus on practical, implementable solutions
 
 Begin by analyzing the provided goal and asking your first strategic question.`;
-
-export const formatPlanAsTodos = (plan: string): Array<{
-  title: string;
-  description: string;
-  complexity: number;
-  codeExample?: string;
-}> => {
-  // This is a placeholder implementation
-  // In a real system, this would use more sophisticated parsing
-  // to extract todos from the plan text
-  const todos = plan.split('\n\n')
-    .filter(section => section.trim().length > 0)
-    .map(section => {
-      const lines = section.split('\n');
-      const title = lines[0].replace(/^[0-9]+\.\s*/, '').trim();
-      const complexity = parseInt(section.match(/Complexity:\s*([0-9]+)/)?.[1] || '5');
-      const codeExample = section.match(/\`\`\`[^\`]*\`\`\`/)?.[0];
-      const description = section
-        .replace(/^[0-9]+\.\s*[^\n]*\n/, '')
-        .replace(/Complexity:\s*[0-9]+/, '')
-        .replace(/\`\`\`[^\`]*\`\`\`/, '')
-        .trim();
-
-      return {
-        title,
-        description,
-        complexity,
-        codeExample: codeExample?.replace(/^\`\`\`|\`\`\`$/g, ''),
-      };
-    });
-
-  return todos;
-};

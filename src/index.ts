@@ -9,15 +9,32 @@ import {
   McpError,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { storage } from './storage.js';
-import { SEQUENTIAL_THINKING_PROMPT, formatPlanAsTodos } from './prompts.js';
-import { Goal, Todo } from './types.js';
+// --- Application & Infrastructure layer imports (Dependency Inversion) ----
+import { JsonFileStorage } from './infrastructure/storage/JsonFileStorage.js';
+import { PlanningService } from './application/PlanningService.js';
+import { BasicPlanParser } from './application/PlanParser.js';
+import { SEQUENTIAL_THINKING_PROMPT } from './application/prompts.js';
+// SEQUENTIAL_THINKING_PROMPT imported above; formatPlanAsTodos removed (parser now in application layer)
+import { Goal } from './domain/entities/Goal.js';
+import { Todo } from './domain/entities/Todo.js';
 
 class SoftwarePlanningServer {
   private server: Server;
   private currentGoal: Goal | null = null;
+  private readonly storage: JsonFileStorage;
+  private readonly planningService: PlanningService;
 
   constructor() {
+    // ------------------------------------------------------------------
+    // Infrastructure & application layer wiring (manual DI)
+    // ------------------------------------------------------------------
+
+    this.storage = new JsonFileStorage();
+    const parser = new BasicPlanParser();
+    this.planningService = new PlanningService(this.storage, this.storage, parser);
+
+    // ------------------------------------------------------------------
+
     this.server = new Server(
       {
         name: 'software-planning-tool',
@@ -81,7 +98,7 @@ class SoftwarePlanningServer {
               'No active goal. Start a new planning session first.'
             );
           }
-          const plan = await storage.getPlan(this.currentGoal.id);
+          const plan = await this.planningService.getPlan(this.currentGoal.id);
           if (!plan) {
             throw new McpError(
               ErrorCode.InvalidParams,
@@ -213,8 +230,7 @@ class SoftwarePlanningServer {
       switch (request.params.name) {
         case 'start_planning': {
           const { goal } = request.params.arguments as { goal: string };
-          this.currentGoal = await storage.createGoal(goal);
-          await storage.createPlan(this.currentGoal.id);
+          this.currentGoal = await this.planningService.createGoal(goal);
 
           return {
             content: [
@@ -235,17 +251,13 @@ class SoftwarePlanningServer {
           }
 
           const { plan } = request.params.arguments as { plan: string };
-          const todos = formatPlanAsTodos(plan);
-
-          for (const todo of todos) {
-            await storage.addTodo(this.currentGoal.id, todo);
-          }
+          const count = await this.planningService.importPlan(this.currentGoal.id, plan);
 
           return {
             content: [
               {
                 type: 'text',
-                text: `Successfully saved ${todos.length} todo items to the implementation plan.`,
+                text: `Successfully saved ${count} todo items to the implementation plan.`,
               },
             ],
           };
@@ -263,7 +275,7 @@ class SoftwarePlanningServer {
             Todo,
             'id' | 'isComplete' | 'createdAt' | 'updatedAt'
           >;
-          const newTodo = await storage.addTodo(this.currentGoal.id, todo);
+          const newTodo = await this.planningService.addTodo(this.currentGoal.id, todo);
 
           return {
             content: [
@@ -284,7 +296,7 @@ class SoftwarePlanningServer {
           }
 
           const { todoId } = request.params.arguments as { todoId: string };
-          await storage.removeTodo(this.currentGoal.id, todoId);
+          await this.planningService.removeTodo(this.currentGoal.id, todoId);
 
           return {
             content: [
@@ -304,7 +316,7 @@ class SoftwarePlanningServer {
             );
           }
 
-          const todos = await storage.getTodos(this.currentGoal.id);
+          const todos = await this.planningService.getTodos(this.currentGoal.id);
 
           return {
             content: [
@@ -328,10 +340,10 @@ class SoftwarePlanningServer {
             todoId: string;
             isComplete: boolean;
           };
-          const updatedTodo = await storage.updateTodoStatus(
+          const updatedTodo = await this.planningService.updateTodoStatus(
             this.currentGoal.id,
             todoId,
-            isComplete
+            isComplete,
           );
 
           return {
@@ -354,7 +366,7 @@ class SoftwarePlanningServer {
   }
 
   async run() {
-    await storage.initialize();
+    await this.storage.initialise();
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('Software Planning MCP server running on stdio');

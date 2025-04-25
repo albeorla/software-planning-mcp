@@ -161,14 +161,31 @@ await client.callTool("software-planning-tool", "save_plan", {
 ```
 software-planning-tool/
   ├── src/
-  │   ├── index.ts        # Main server implementation
-  │   ├── prompts.ts      # Planning prompts and templates
-  │   ├── storage.ts      # Data persistence
-  │   └── types.ts        # TypeScript type definitions
+  │   ├── index.ts        # Transport layer (MCP server) – wiring only
+  │   ├── application/prompts.ts   # Prompt definition(s)
+  │   ├── application/PlanParser.ts # Convert plan markdown → Todo[]
+  │   ├── domain/
+  │   │   ├── entities/
+  │   │   │   ├── Goal.ts            # Entity
+  │   │   │   ├── Todo.ts            # Entity
+  │   │   │   └── ImplementationPlan.ts # Aggregate Root
+  │   │   └── repositories/          # Repository interfaces
+  │   ├── application/
+  │   │   └── PlanningService.ts     # Use-case orchestration
+  │   └── infrastructure/
+  │       └── storage/
+  │           └── JsonFileStorage.ts # Repository implementation
   ├── build/              # Compiled JavaScript
   ├── package.json
   └── tsconfig.json
 ```
+
+Layering summary (clean SOLID + DDD):
+
+1. **Domain** – Pure business rules. No I/O. Easily unit-testable.
+2. **Application** – Coordinates domain for specific use-cases.
+3. **Infrastructure** – Implements repositories (JSON file persistence). Can be swapped without changing domain/application.
+4. **Presentation / Transport** – MCP server exposing tools/resources.
 
 ### Building
 ```bash
