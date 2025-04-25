@@ -1,7 +1,6 @@
 # Software Planning Tool 🚀
-[![smithery badge](https://smithery.ai/badge/@NightTrek/Software-planning-mcp)](https://smithery.ai/server/@NightTrek/Software-planning-mcp)
 
-A Model Context Protocol (MCP) server designed to facilitate software development planning through an interactive, structured approach. This tool helps break down complex software projects into manageable tasks, track implementation progress, and maintain detailed development plans.
+A comprehensive software development planning and governance tool built following Domain-Driven Design (DDD) principles. This MCP server enforces a structured development workflow while providing rich planning capabilities for complex software projects.
 
 <a href="https://glama.ai/mcp/servers/a35c7qc7ie">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/a35c7qc7ie/badge" alt="Software Planning Tool MCP server" />
@@ -9,23 +8,47 @@ A Model Context Protocol (MCP) server designed to facilitate software developmen
 
 ## Features ✨
 
-- **Interactive Planning Sessions**: Start and manage development planning sessions
-- **Todo Management**: Create, update, and track development tasks
-- **Complexity Scoring**: Assign complexity scores to tasks for better estimation
-- **Code Examples**: Include relevant code snippets in task descriptions
-- **Implementation Plans**: Save and manage detailed implementation plans
+- **Structured Development Workflow**: Enforced phases for planning, implementation, review, and completion
+- **Product Roadmapping**: Create and manage product roadmaps with timeframes, initiatives, and items
+- **Task Management**: Create and track tasks, subtasks, and related artifacts
+- **Documentation Generation**: Automated creation of PRDs, Epics, User Stories, and other documents
+- **Sequential Thinking**: Record and organize thoughts during the planning process
+- **Version Control Integration**: Coordinate Git operations tied to specific tasks and sprints
+- **Sprint Planning**: Organize tasks into sprints with tracking and reporting
+
+## Domain-Driven Design Architecture
+
+This project implements a comprehensive software planning tool following DDD and SOLID principles:
+
+### Architecture Layers
+
+1. **Domain Layer**: Rich domain models with encapsulated behavior
+2. **Application Layer**: Orchestrates use cases and enforces workflow rules
+3. **Infrastructure Layer**: Implements persistence through repository pattern
+4. **Presentation Layer**: Governance server exposing tools to Claude via MCP
+
+### Bounded Contexts
+
+1. **Planning Context**: Manages PRDs, Epics, Stories, Tasks, and Roadmaps
+2. **Documentation Context**: Handles generating and updating markdown documentation
+3. **Thinking Context**: Manages sequential thinking processes for planning
+4. **Version Control Context**: Coordinates Git operations and connects tasks to commits
 
 ## Installation 🛠️
 
-### Installing via Smithery
+### Prerequisites
 
-To install Software Planning Tool for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@NightTrek/Software-planning-mcp):
+- Node.js 16+ and pnpm
+- Claude Code (claude.ai/code)
+
+### Installing via Smithery
 
 ```bash
 npx -y @smithery/cli install @NightTrek/Software-planning-mcp --client claude
 ```
 
 ### Manual Installation
+
 1. Clone the repository
 2. Install dependencies:
 ```bash
@@ -35,168 +58,111 @@ pnpm install
 ```bash
 pnpm run build
 ```
-4. Add to your MCP settings configuration (typically located at `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`):
-```json
-{
-  "mcpServers": {
-    "software-planning-tool": {
-      "command": "node",
-      "args": [
-        "/path/to/software-planning-tool/build/index.js"
-      ],
-      "disabled": false,
-      "autoApprove": []
-    }
-  }
-}
+
+## Usage 🧰
+
+### Starting the Governance Server
+
+```bash
+pnpm run governance
 ```
 
-## Available Tools 🔧
+This starts the governance MCP server that enforces the workflow rules.
 
-### start_planning
-Start a new planning session with a specific goal.
-```typescript
-{
-  goal: string  // The software development goal to plan
-}
+### Workflow Phases
+
+The governance server enforces these workflow phases:
+
+1. **Planning Phase**: Creating PRDs, Epics, Stories, Tasks, and Roadmaps
+2. **Implementation Phase**: Executing tasks and modifying code
+3. **Review and Commit Phase**: Code review and committing changes
+4. **Completed Phase**: Finished tasks
+
+### Governance Tools
+
+The MCP server exposes tools for each phase of development:
+
+#### Planning Phase
+- `mcp__governance__start_planning_session`: Begin a planning session
+- `mcp__governance__add_planning_thought`: Record thoughts during planning
+- `mcp__governance__create_prd`, `create_epic`, etc.: Create documentation
+- `mcp__governance__create_task`: Define implementation tasks
+- `mcp__governance__create_roadmap`: Create a product roadmap
+
+#### Implementation Phase
+- `mcp__governance__start_implementation`: Begin implementing a task
+- `mcp__governance__track_file_read`: Track file reads
+- `mcp__governance__track_file_edit`: Track file edits
+- `mcp__governance__update_task_status`: Update task status
+- `mcp__governance__log_daily_work`: Log progress
+
+#### Review and Commit Phase
+- `mcp__governance__start_code_review`: Conduct code review
+- `mcp__governance__create_branch`: Create git branches
+- `mcp__governance__commit_changes`: Commit work
+- `mcp__governance__create_pull_request`: Create PRs
+
+## Project Structure 📂
+
 ```
-
-### add_todo
-Add a new todo item to the current plan.
-```typescript
-{
-  title: string,         // Title of the todo item
-  description: string,   // Detailed description
-  complexity: number,    // Complexity score (0-10)
-  codeExample?: string  // Optional code example
-}
-```
-
-### get_todos
-Retrieve all todos in the current plan.
-```typescript
-// No parameters required
-```
-
-### update_todo_status
-Update the completion status of a todo item.
-```typescript
-{
-  todoId: string,     // ID of the todo item
-  isComplete: boolean // New completion status
-}
-```
-
-### save_plan
-Save the current implementation plan.
-```typescript
-{
-  plan: string  // The implementation plan text
-}
-```
-
-### remove_todo
-Remove a todo item from the current plan.
-```typescript
-{
-  todoId: string  // ID of the todo item to remove
-}
-```
-
-## Example Usage 📝
-
-Here's a complete example of using the software planning tool:
-
-1. Start a planning session:
-```typescript
-await client.callTool("software-planning-tool", "start_planning", {
-  goal: "Create a React-based dashboard application"
-});
-```
-
-2. Add a todo item:
-```typescript
-const todo = await client.callTool("software-planning-tool", "add_todo", {
-  title: "Set up project structure",
-  description: "Initialize React project with necessary dependencies",
-  complexity: 3,
-  codeExample: `
-npx create-react-app dashboard
-cd dashboard
-npm install @material-ui/core @material-ui/icons
-  `
-});
-```
-
-3. Update todo status:
-```typescript
-await client.callTool("software-planning-tool", "update_todo_status", {
-  todoId: todo.id,
-  isComplete: true
-});
-```
-
-4. Save the implementation plan:
-```typescript
-await client.callTool("software-planning-tool", "save_plan", {
-  plan: `
-# Dashboard Implementation Plan
-
-## Phase 1: Setup (Complexity: 3)
-- Initialize React project
-- Install dependencies
-- Set up routing
-
-## Phase 2: Core Features (Complexity: 5)
-- Implement authentication
-- Create dashboard layout
-- Add data visualization components
-  `
-});
+software-planning-tool/
+├── src/
+│   ├── domain/               # Domain layer - entities, repositories
+│   │   ├── entities/         # Domain entities with behavior
+│   │   └── repositories/     # Repository interfaces
+│   ├── application/          # Application services
+│   │   ├── PlanningService.ts
+│   │   ├── ThinkingService.ts
+│   │   ├── DocumentationService.ts
+│   │   └── VersionControlService.ts
+│   ├── infrastructure/       # Repository implementations
+│   │   ├── storage/          # JSON file repositories
+│   │   ├── documentation/    # Markdown file handling
+│   │   └── versioncontrol/   # Git operations
+│   ├── governance/           # Governance server
+│   │   ├── handlers/         # Specialized handlers by context
+│   │   ├── config/           # Tool definitions by category
+│   │   │   ├── WorkflowToolDefinitions.ts
+│   │   │   ├── DocumentToolDefinitions.ts
+│   │   │   ├── TaskToolDefinitions.ts
+│   │   │   ├── VersionControlToolDefinitions.ts
+│   │   │   ├── SprintToolDefinitions.ts
+│   │   │   └── ToolDefinitionsFactory.ts
+│   │   ├── GovernanceServer.ts
+│   │   └── WorkflowState.ts
+│   └── index.ts              # MCP server entry point
+├── docs/                     # Documentation
+│   ├── architecture.md       # Architectural details with class diagrams
+│   ├── workflow.md           # Workflow phase documentation
+│   ├── domain_model_analysis.md # DDD analysis and recommendations
+│   └── code_metrics.html     # Code metrics visualizations
+└── CLAUDE.md                 # Instructions for Claude Code
 ```
 
 ## Development 🔨
 
-### Project Structure
-```
-software-planning-tool/
-  ├── src/
-  │   ├── index.ts        # Transport layer (MCP server) – wiring only
-  │   ├── application/prompts.ts   # Prompt definition(s)
-  │   ├── application/PlanParser.ts # Convert plan markdown → Todo[]
-  │   ├── domain/
-  │   │   ├── entities/
-  │   │   │   ├── Goal.ts            # Entity
-  │   │   │   ├── Todo.ts            # Entity
-  │   │   │   └── ImplementationPlan.ts # Aggregate Root
-  │   │   └── repositories/          # Repository interfaces
-  │   ├── application/
-  │   │   └── PlanningService.ts     # Use-case orchestration
-  │   └── infrastructure/
-  │       └── storage/
-  │           └── JsonFileStorage.ts # Repository implementation
-  ├── build/              # Compiled JavaScript
-  ├── package.json
-  └── tsconfig.json
-```
+### Build Commands
+- Build: `pnpm run build`
+- Watch mode: `pnpm run watch`
+- Test with MCP inspector: `pnpm run inspector`
+- Start governance server: `pnpm run governance`
+- Generate metrics: `pnpm run metrics`
 
-Layering summary (clean SOLID + DDD):
+### Code Organization Guidelines
 
-1. **Domain** – Pure business rules. No I/O. Easily unit-testable.
-2. **Application** – Coordinates domain for specific use-cases.
-3. **Infrastructure** – Implements repositories (JSON file persistence). Can be swapped without changing domain/application.
-4. **Presentation / Transport** – MCP server exposing tools/resources.
+- **Modular Configuration**: Tool definitions must be organized by category in separate files under `src/governance/config/`
+- **File Size Limits**: No single file should exceed 400 lines of code
+- **Metrics Monitoring**: Run `pnpm run metrics` regularly to identify files that need refactoring
 
-### Building
-```bash
-pnpm run build
-```
+### Current Status
 
-### Testing
-Test all features using the MCP inspector:
-```bash
-pnpm run inspector
-```
+- See [CLAUDE.md](CLAUDE.md) for detailed implementation status and upcoming tasks
+- For in-depth architectural details, view the [Architecture Documentation](docs/architecture.md)
+- For domain model analysis and recommendations, see the [Domain Model Analysis](docs/domain_model_analysis.md)
+
+## Contributing 🤝
+
+Contributions are welcome! Please review the architecture documentation before making changes to ensure alignment with the DDD principles and established patterns.
 
 ## License 📄
 
@@ -204,4 +170,4 @@ MIT
 
 ---
 
-Made with ❤️ using the Model Context Protocol
+Made with ❤️ using Domain-Driven Design and the Model Context Protocol

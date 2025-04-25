@@ -16,7 +16,8 @@
     "prepare": "npm run build",
     "watch": "tsc --watch",
     "inspector": "npx @modelcontextprotocol/inspector build/index.js",
-    "governance": "npx @modelcontextprotocol/inspector build/governance-server.js"
+    "governance": "npx @modelcontextprotocol/inspector build/governance-server.js",
+    "metrics": "node scripts/generate-code-metrics.js > docs/code_metrics.csv && node scripts/generate-metrics-html.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "0.6.0"

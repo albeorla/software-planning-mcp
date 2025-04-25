@@ -1,11 +1,11 @@
-import { DocumentationApplicationService } from '../../application/DocumentationService.js';
+import { DocumentationApplicationService } from '../../../application/DocumentationService.js';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
-import { WorkflowState, WorkflowPhase } from '../WorkflowState.js';
+import { WorkflowState, WorkflowPhase } from '../../WorkflowState.js';
 
 /**
- * Handlers for document-related governance tools
+ * Handlers for requirements-related documents (PRD, Epic)
  */
-export class DocumentHandlers {
+export class RequirementsHandlers {
   /**
    * Create a Product Requirements Document (PRD)
    */
@@ -171,142 +171,6 @@ export class DocumentHandlers {
       throw new McpError(
         ErrorCode.InternalError,
         `Failed to create Epic: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-
-  /**
-   * Create a User Story document
-   */
-  static async createStory(
-    state: WorkflowState,
-    storyData: {
-      title: string;
-      userType: string;
-      action: string;
-      benefit: string;
-      description?: string;
-      epicId: string;
-      acceptanceCriteria?: {
-        scenario: string;
-        given: string;
-        when: string;
-        then: string;
-      }[];
-      complexity: number;
-    }
-  ) {
-    // Verify we're in the planning phase
-    if (state.currentPhase !== WorkflowPhase.PLANNING) {
-      throw new McpError(
-        ErrorCode.InvalidRequest,
-        `Cannot create User Story in ${state.currentPhase} phase. Must be in PLANNING phase.`
-      );
-    }
-
-    try {
-      // Create a DocumentationService instance
-      const documentationService = new DocumentationApplicationService();
-      await documentationService.initialize(); // Ensure the documentation directories are created
-      
-      // Call the createUserStory method
-      const result = await documentationService.createUserStory(
-        storyData.title,
-        storyData.userType,
-        storyData.action,
-        storyData.benefit,
-        storyData.epicId
-      );
-      
-      // Update the workflow state with additional story details
-      state.addThought(`Created User Story document: ${result.id} - ${storyData.title} (Complexity: ${storyData.complexity})`);
-      
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              message: "User Story created successfully",
-              id: result.id,
-              filePath: result.filePath,
-              title: storyData.title,
-              userStory: `As a ${storyData.userType}, I want to ${storyData.action}, so that ${storyData.benefit}`,
-              complexity: storyData.complexity
-            }, null, 2),
-          },
-        ],
-      };
-    } catch (error) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Failed to create User Story: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-
-  /**
-   * Create a Spike document
-   */
-  static async createSpike(
-    state: WorkflowState,
-    spikeData: {
-      title: string;
-      objective: string;
-      background?: string;
-      questions: string[];
-      researchApproach?: string;
-      timeBox: string;
-      parentReference?: string;
-      acceptanceCriteria?: string[];
-      deliverables: string[];
-    }
-  ) {
-    // Verify we're in the planning phase
-    if (state.currentPhase !== WorkflowPhase.PLANNING) {
-      throw new McpError(
-        ErrorCode.InvalidRequest,
-        `Cannot create Spike in ${state.currentPhase} phase. Must be in PLANNING phase.`
-      );
-    }
-
-    try {
-      // Create a DocumentationService instance
-      const documentationService = new DocumentationApplicationService();
-      await documentationService.initialize(); // Ensure the documentation directories are created
-      
-      // Call the createSpike method
-      const result = await documentationService.createSpike(
-        spikeData.title,
-        spikeData.objective,
-        spikeData.questions,
-        spikeData.timeBox,
-        spikeData.parentReference,
-        spikeData.background,
-        spikeData.researchApproach,
-        spikeData.acceptanceCriteria,
-        spikeData.deliverables
-      );
-      
-      // Update the workflow state
-      state.addThought(`Created Spike document: ${result.id} - ${spikeData.title}`);
-      
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              message: "Spike created successfully",
-              id: result.id,
-              filePath: result.filePath,
-              title: spikeData.title
-            }, null, 2),
-          },
-        ],
-      };
-    } catch (error) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Failed to create Spike: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
