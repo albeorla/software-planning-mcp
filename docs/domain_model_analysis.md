@@ -33,17 +33,24 @@ Our system is well-organized into these bounded contexts:
 ### Current Metrics (Top 10 Files by Size, Updated)
 
 ```
-src/application/RoadmapService.ts              597 lines
 src/index.ts                                   542 lines
 src/application/DocumentTemplates.ts           485 lines
 src/application/TemplateService.ts             336 lines
+src/application/roadmap/RoadmapApplicationService.ts 323 lines
 src/domain/entities/roadmap/Roadmap.ts         297 lines
 src/application/DocumentationService.ts        285 lines
+src/application/roadmap/RoadmapCommandService.ts 273 lines
+src/governance/handlers/planning/RoadmapHandlers.ts 270 lines
 src/governance/config/TaskToolDefinitions.ts   232 lines
 src/governance/handlers/task/TaskCreationHandlers.ts 226 lines
-src/governance/config/DocumentToolDefinitions.ts 214 lines
-src/governance/handlers/planning/roadmap/RoadmapManagementHandlers.ts 208 lines
 ```
+
+The original large `RoadmapService.ts` (597 lines) has been successfully refactored following CQRS:
+- `src/application/roadmap/RoadmapApplicationService.ts`: 323 lines (Facade combining query and command)
+- `src/application/roadmap/RoadmapCommandService.ts`: 273 lines (Write operations)
+- `src/application/roadmap/RoadmapQueryService.ts`: 193 lines (Read operations)
+- `src/application/roadmap/index.ts`: 3 lines (Exports)
+- Original `src/application/RoadmapService.ts`: 97 lines (Backward compatibility facade)
 
 The original `Roadmap.ts` (689 lines) has been successfully split into more manageable files:
 - `src/domain/entities/roadmap/Roadmap.ts`: 297 lines
@@ -619,8 +626,12 @@ export class RoadmapManagementService {
 
 1. **Phase 2: Split Remaining Large Service Files (High)**
    - ✅ Split RoadmapHandlers.ts (666 lines) into separate handler files by responsibility
-   - Split RoadmapService.ts (597 lines) into more focused service classes
-   - Apply Command Query Responsibility Segregation (CQRS) pattern to separate read/write operations
+   - ✅ Split RoadmapService.ts (597 lines) into more focused service classes:
+     - Created RoadmapQueryService for read operations
+     - Created RoadmapCommandService for write operations
+     - Created RoadmapApplicationService as a facade combining both services
+     - Maintained backward compatibility with re-exports and deprecation notices
+   - ✅ Applied Command Query Responsibility Segregation (CQRS) pattern to separate read/write operations
 
 2. **Phase 3: Implement Value Objects (High)**
    - Create Priority, Status, Category value objects

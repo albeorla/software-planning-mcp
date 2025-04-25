@@ -1,6 +1,6 @@
 import { WorkflowState, WorkflowPhase } from "../../../WorkflowState.js";
 import { GovernanceToolProxy } from "../../../GovernanceToolProxy.js";
-import { RoadmapApplicationService } from "../../../../application/RoadmapService.js";
+import { RoadmapApplicationService } from "../../../../application/roadmap/index.js";
 
 /**
  * Handlers for roadmap note operations in the governance server
@@ -208,7 +208,7 @@ export class RoadmapNoteHandlers {
       } else if (data?.relatedRoadmapId) {
         // For related roadmap, we might need to filter manually
         const allNotes = await roadmapService.getAllRoadmapNotes();
-        notes = allNotes.filter(note => 
+        notes = allNotes.filter((note: any) => 
           note.relatedItems && note.relatedItems.includes(data.relatedRoadmapId || "")
         );
       } else {

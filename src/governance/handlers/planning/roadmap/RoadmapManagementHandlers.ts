@@ -1,6 +1,7 @@
 import { WorkflowState, WorkflowPhase } from "../../../WorkflowState.js";
 import { GovernanceToolProxy } from "../../../GovernanceToolProxy.js";
 import { RoadmapApplicationService } from "../../../../application/RoadmapService.js";
+import { Roadmap } from "../../../../domain/entities/roadmap/index.js";
 
 /**
  * Handlers for roadmap management operations in the governance server
@@ -126,7 +127,16 @@ export class RoadmapManagementHandlers {
 
       return {
         success: true,
-        roadmaps: roadmaps.map(roadmap => roadmap.toJSON()),
+        roadmaps: roadmaps.map((roadmap: Roadmap) => ({
+          id: roadmap.id,
+          title: roadmap.title,
+          description: roadmap.description,
+          version: roadmap.version,
+          owner: roadmap.owner,
+          timeframeCount: roadmap.timeframes.length,
+          createdAt: roadmap.createdAt,
+          updatedAt: roadmap.updatedAt
+        })),
       };
     } catch (error: any) {
       console.error("Error listing roadmaps:", error);
@@ -176,7 +186,7 @@ export class RoadmapManagementHandlers {
       }
 
       // Find the newly added timeframe
-      const timeframe = roadmap.timeframes.find(tf => tf.name === data.name && tf.order === data.order);
+      const timeframe = roadmap.timeframes.find((tf: any) => tf.name === data.name && tf.order === data.order);
       
       if (!timeframe) {
         return {
@@ -258,7 +268,7 @@ export class RoadmapManagementHandlers {
       }
       
       // Find the newly added initiative by title
-      const initiative = timeframe.initiatives.find(init => init.title === data.title);
+      const initiative = timeframe.initiatives.find((init: any) => init.title === data.title);
       if (!initiative) {
         return {
           success: false,
@@ -354,7 +364,7 @@ export class RoadmapManagementHandlers {
       }
       
       // Find the newly added item by title
-      const item = initiative.items.find(itm => itm.title === data.title);
+      const item = initiative.items.find((itm: any) => itm.title === data.title);
       if (!item) {
         return {
           success: false,
