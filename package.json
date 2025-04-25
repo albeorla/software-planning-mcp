@@ -5,16 +5,18 @@
   "private": true,
   "type": "module",
   "bin": {
-    "software-planning-tool": "./build/index.js"
+    "software-planning-tool": "./build/index.js",
+    "governance-server": "./build/governance-server.js"
   },
   "files": [
     "build"
   ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755') && require('fs').chmodSync('build/governance-server.js', '755')\"",
     "prepare": "npm run build",
     "watch": "tsc --watch",
-    "inspector": "npx @modelcontextprotocol/inspector build/index.js"
+    "inspector": "npx @modelcontextprotocol/inspector build/index.js",
+    "governance": "npx @modelcontextprotocol/inspector build/governance-server.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "0.6.0"

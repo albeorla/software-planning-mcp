@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { TemplateService } from "./TemplateService.js";
 
 /**
  * Application service that handles the management of documentation files.
@@ -8,10 +9,12 @@ import path from "path";
  */
 export class DocumentationApplicationService {
   private readonly docsBasePath: string;
+  private readonly templateService: TemplateService;
 
-  constructor() {
+  constructor(templateService?: TemplateService) {
     // Store documentation in the .docs directory in the project root
     this.docsBasePath = path.join(process.cwd(), ".docs");
+    this.templateService = templateService || new TemplateService();
   }
 
   /**
@@ -133,5 +136,150 @@ _Updated automatically by the system_
     } catch (error) {
       throw error;
     }
+  }
+
+  /**
+   * Creates a Product Requirements Document (PRD) and saves it to the docs directory
+   */
+  public async createPRD(title: string, description: string): Promise<{
+    id: string;
+    filePath: string;
+  }> {
+    // Create document directory if it doesn't exist
+    const prdsDir = path.join(this.docsBasePath, "planning/prds");
+    await fs.mkdir(prdsDir, { recursive: true });
+
+    // Generate PRD content using the template service
+    const { id, content } = await this.templateService.generatePRD(title, description);
+    
+    // Save the PRD to a file
+    const fileName = `${id.toLowerCase()}.md`;
+    const filePath = path.join(prdsDir, fileName);
+    await fs.writeFile(filePath, content);
+    
+    return { id, filePath };
+  }
+
+  /**
+   * Creates an Epic document and saves it to the docs directory
+   */
+  public async createEpic(title: string, description: string, prdIds: string[]): Promise<{
+    id: string;
+    filePath: string;
+  }> {
+    // Create directory if it doesn't exist
+    const epicsDir = path.join(this.docsBasePath, "planning/epics");
+    await fs.mkdir(epicsDir, { recursive: true });
+
+    // Generate Epic content
+    const { id, content } = await this.templateService.generateEpic(title, description, prdIds);
+    
+    // Save the Epic to a file
+    const fileName = `${id.toLowerCase()}.md`;
+    const filePath = path.join(epicsDir, fileName);
+    await fs.writeFile(filePath, content);
+    
+    return { id, filePath };
+  }
+
+  /**
+   * Creates a User Story document and saves it to the docs directory
+   */
+  public async createUserStory(
+    title: string,
+    userType: string,
+    action: string,
+    benefit: string,
+    epicId: string
+  ): Promise<{
+    id: string;
+    filePath: string;
+  }> {
+    // Create directory if it doesn't exist
+    const storiesDir = path.join(this.docsBasePath, "planning/stories");
+    await fs.mkdir(storiesDir, { recursive: true });
+
+    // Generate User Story content
+    const { id, content } = await this.templateService.generateUserStory(
+      title, userType, action, benefit, epicId
+    );
+    
+    // Save the User Story to a file
+    const fileName = `${id.toLowerCase()}.md`;
+    const filePath = path.join(storiesDir, fileName);
+    await fs.writeFile(filePath, content);
+    
+    return { id, filePath };
+  }
+
+  /**
+   * Creates a Task document and saves it to the docs directory
+   */
+  public async createTask(
+    title: string,
+    description: string,
+    storyId: string,
+    complexity: number
+  ): Promise<{
+    id: string;
+    filePath: string;
+  }> {
+    // Create directory if it doesn't exist
+    const tasksDir = path.join(this.docsBasePath, "planning/tasks");
+    await fs.mkdir(tasksDir, { recursive: true });
+
+    // Generate Task content
+    const { id, content } = await this.templateService.generateTask(
+      title, description, storyId, complexity
+    );
+    
+    // Save the Task to a file
+    const fileName = `${id.toLowerCase()}.md`;
+    const filePath = path.join(tasksDir, fileName);
+    await fs.writeFile(filePath, content);
+    
+    return { id, filePath };
+  }
+  
+  /**
+   * Creates a Spike document for research and exploration and saves it to the docs directory
+   */
+  public async createSpike(
+    title: string,
+    objective: string,
+    questions: string[],
+    timeBox: string,
+    parentReference?: string,
+    background?: string,
+    researchApproach?: string,
+    acceptanceCriteria?: string[],
+    deliverables?: string[]
+  ): Promise<{
+    id: string;
+    filePath: string;
+  }> {
+    // Create directory if it doesn't exist
+    const spikesDir = path.join(this.docsBasePath, "planning/spikes");
+    await fs.mkdir(spikesDir, { recursive: true });
+
+    // Generate Spike content
+    const { id, content } = await this.templateService.generateSpike(
+      title,
+      objective,
+      questions,
+      timeBox,
+      parentReference,
+      background,
+      researchApproach,
+      acceptanceCriteria,
+      deliverables
+    );
+    
+    // Save the Spike to a file
+    const fileName = `${id.toLowerCase()}.md`;
+    const filePath = path.join(spikesDir, fileName);
+    await fs.writeFile(filePath, content);
+    
+    return { id, filePath };
   }
 }
