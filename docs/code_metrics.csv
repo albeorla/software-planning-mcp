@@ -1,8 +1,10 @@
 file_path,description,lines_of_code
-src/application/RoadmapService.ts,Service for Roadmap operations,597
+src/application/roadmap/RoadmapCommandService.ts,Service for RoadmapCommand operations,551
 src/index.ts,index implementation,542
 src/application/DocumentTemplates.ts,DocumentTemplates implementation,485
-src/governance/handlers/planning/roadmap/RoadmapManagementHandlers.ts,Handler for RoadmapManagementHandlers.ts operations,385
+src/application/roadmap/RoadmapApplicationService.ts,Service for RoadmapApplication operations,458
+src/application/RoadmapService.ts,Service for Roadmap operations,455
+src/governance/handlers/planning/roadmap/RoadmapManagementHandlers.ts,Handler for RoadmapManagementHandlers.ts operations,395
 src/application/TemplateService.ts,Service for Template operations,336
 src/domain/entities/roadmap/Roadmap.ts,Roadmap implementation,297
 src/application/DocumentationService.ts,Service for Documentation operations,285
@@ -33,6 +35,7 @@ src/domain/entities/Story.ts,Story implementation,112
 src/governance/config/VersionControlToolDefinitions.ts,VersionControlToolDefinitions implementation,111
 src/domain/entities/Epic.ts,Epic implementation,109
 src/infrastructure/storage/JsonFileRoadmapNoteRepository.ts,Data repository for JsonFileRoadmapNote,107
+src/application/roadmap/RoadmapQueryService.ts,Service for RoadmapQuery operations,100
 src/governance/GovernanceServer.ts,Main Governance Server class that configures and runs the MCP server,98
 src/infrastructure/storage/JsonFileRoadmapRepository.ts,Data repository for JsonFileRoadmap,98
 src/infrastructure/storage/JsonFileThinkingProcessRepository.ts,Data repository for JsonFileThinkingProcess,94
@@ -72,6 +75,7 @@ src/domain/repositories/GoalRepository.ts,Data repository for Goal,11
 src/domain/repositories/ThinkingProcessRepository.ts,Data repository for ThinkingProcess,10
 src/governance-server.ts,governance-server implementation,5
 src/domain/entities/roadmap/index.ts,index implementation,4
+src/application/roadmap/index.ts,index implementation,3
 src/governance/handlers/document/index.ts,Export index for document handlers,3
 src/governance/handlers/planning/index.ts,Export index for planning handlers,3
 src/governance/handlers/task/index.ts,Export index for task handlers,3

@@ -193,8 +193,45 @@ classDiagram
         -requirePlan(string): Promise~ImplementationPlan~
     }
     
+    class RoadmapQueryService {
+        -IRoadmapRepository roadmapRepository
+        -IRoadmapNoteRepository noteRepository
+        +getRoadmap(string): Promise~Roadmap|null~
+        +getAllRoadmaps(): Promise~Roadmap[]~
+        +getRoadmapsByOwner(string): Promise~Roadmap[]~
+        +getRoadmapNote(string): Promise~RoadmapNote|null~
+        +getAllRoadmapNotes(): Promise~RoadmapNote[]~
+        +getRoadmapNotesByCategory(string): Promise~RoadmapNote[]~
+        +getRoadmapNotesByPriority(string): Promise~RoadmapNote[]~
+        +getRoadmapNotesByTimeline(string): Promise~RoadmapNote[]~
+    }
+    
+    class RoadmapCommandService {
+        -IRoadmapRepository roadmapRepository
+        -IRoadmapNoteRepository noteRepository
+        +createRoadmap(string, string, string, string, object[]): Promise~Roadmap~
+        +updateRoadmap(string, object): Promise~Roadmap|null~
+        +deleteRoadmap(string): Promise~boolean~
+        +addTimeframe(string, string, number): Promise~Roadmap|null~
+        +addInitiative(string, string, string, string, string, string): Promise~Roadmap|null~
+        +addItem(string, string, string, string, string, string?, string[]?, string?): Promise~Roadmap|null~
+        +createRoadmapNote(string, string, string, string, string, string[]): Promise~RoadmapNote~
+        +updateRoadmapNote(string, object): Promise~RoadmapNote|null~
+        +deleteRoadmapNote(string): Promise~boolean~
+    }
+    
     class RoadmapApplicationService {
-        -RoadmapNoteRepository repository
+        -RoadmapCommandService commandService
+        -RoadmapQueryService queryService
+        +createRoadmap(string, string, string, string, object[]): Promise~Roadmap~
+        +getRoadmap(string): Promise~Roadmap|null~
+        +getAllRoadmaps(): Promise~Roadmap[]~
+        +getRoadmapsByOwner(string): Promise~Roadmap[]~
+        +updateRoadmap(string, object): Promise~Roadmap|null~
+        +deleteRoadmap(string): Promise~boolean~
+        +addTimeframe(string, string, number): Promise~Roadmap|null~
+        +addInitiative(string, string, string, string, string, string): Promise~Roadmap|null~
+        +addItem(string, string, string, string, string, string?, string[]?, string?): Promise~Roadmap|null~
         +createRoadmapNote(string, string, string, string, string, string[]): Promise~RoadmapNote~
         +updateRoadmapNote(string, object): Promise~RoadmapNote|null~
         +getRoadmapNote(string): Promise~RoadmapNote|null~
@@ -348,8 +385,15 @@ classDiagram
     %% Relationships - Application Services
     PlanningApplicationService --> GoalRepository : uses
     PlanningApplicationService --> ImplementationPlanRepository : uses
-    RoadmapApplicationService --> RoadmapRepository : uses
-    RoadmapApplicationService --> RoadmapNoteRepository : uses
+    
+    %% CQRS Roadmap Services
+    RoadmapApplicationService --> RoadmapCommandService : uses
+    RoadmapApplicationService --> RoadmapQueryService : uses
+    RoadmapCommandService --> RoadmapRepository : uses
+    RoadmapCommandService --> RoadmapNoteRepository : uses
+    RoadmapQueryService --> RoadmapRepository : uses
+    RoadmapQueryService --> RoadmapNoteRepository : uses
+    
     ThinkingApplicationService --> ThinkingProcessRepository : uses
     DocumentationApplicationService --> TemplateService : uses
     

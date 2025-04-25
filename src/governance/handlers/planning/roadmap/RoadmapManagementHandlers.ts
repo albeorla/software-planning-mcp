@@ -1,6 +1,6 @@
 import { WorkflowState, WorkflowPhase } from "../../../WorkflowState.js";
 import { GovernanceToolProxy } from "../../../GovernanceToolProxy.js";
-import { RoadmapApplicationService } from "../../../../application/RoadmapService.js";
+import { RoadmapApplicationService } from "../../../../application/roadmap/index.js";
 import { Roadmap } from "../../../../domain/entities/roadmap/index.js";
 
 /**

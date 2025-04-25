@@ -114,7 +114,11 @@ software-planning-tool/
 │   │   ├── PlanningService.ts
 │   │   ├── ThinkingService.ts
 │   │   ├── DocumentationService.ts
-│   │   └── VersionControlService.ts
+│   │   ├── VersionControlService.ts
+│   │   ├── roadmap/                # CQRS implementation for roadmap
+│   │   │   ├── RoadmapQueryService.ts       # Read operations
+│   │   │   ├── RoadmapCommandService.ts     # Write operations  
+│   │   │   └── RoadmapApplicationService.ts # Facade combining both
 │   ├── infrastructure/       # Repository implementations
 │   │   ├── storage/          # JSON file repositories
 │   │   ├── documentation/    # Markdown file handling
