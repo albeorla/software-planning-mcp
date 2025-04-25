@@ -14,6 +14,8 @@ import { JsonFileStorage } from './infrastructure/storage/JsonFileStorage.js';
 import { PlanningService } from './application/PlanningService.js';
 import { BasicPlanParser } from './application/PlanParser.js';
 import { SEQUENTIAL_THINKING_PROMPT } from './application/prompts.js';
+import { ThinkingService } from './application/ThinkingService.js';
+import { JsonFileThinkingProcessRepository } from './infrastructure/storage/JsonFileThinkingProcessRepository.js';
 // SEQUENTIAL_THINKING_PROMPT imported above; formatPlanAsTodos removed (parser now in application layer)
 import { Goal } from './domain/entities/Goal.js';
 import { Todo } from './domain/entities/Todo.js';
@@ -23,6 +25,7 @@ class SoftwarePlanningServer {
   private currentGoal: Goal | null = null;
   private readonly storage: JsonFileStorage;
   private readonly planningService: PlanningService;
+  private readonly thinkingService: ThinkingService;
 
   constructor() {
     // ------------------------------------------------------------------
@@ -32,6 +35,13 @@ class SoftwarePlanningServer {
     this.storage = new JsonFileStorage();
     const parser = new BasicPlanParser();
     this.planningService = new PlanningService(this.storage, this.storage, parser);
+
+    // ------------------------------------------------------------------
+    // Sequential thinking wiring
+    // ------------------------------------------------------------------
+
+    const thinkingRepo = new JsonFileThinkingProcessRepository();
+    this.thinkingService = new ThinkingService(thinkingRepo);
 
     // ------------------------------------------------------------------
 
@@ -223,6 +233,20 @@ class SoftwarePlanningServer {
             required: ['todoId', 'isComplete'],
           },
         },
+        {
+          name: 'sequentialthinking',
+          description: 'Add a thought to the sequential thinking process associated with the current goal',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              thought: {
+                type: 'string',
+                description: 'The thought to record',
+              },
+            },
+            required: ['thought'],
+          },
+        },
       ],
     }));
 
@@ -351,6 +375,27 @@ class SoftwarePlanningServer {
               {
                 type: 'text',
                 text: JSON.stringify(updatedTodo, null, 2),
+              },
+            ],
+          };
+        }
+
+        case 'sequentialthinking': {
+          if (!this.currentGoal) {
+            throw new McpError(
+              ErrorCode.InvalidRequest,
+              'No active goal. Start a new planning session first.'
+            );
+          }
+
+          const { thought } = request.params.arguments as { thought: string };
+          const process = await this.thinkingService.addThought(this.currentGoal.id, thought);
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(process.history, null, 2),
               },
             ],
           };

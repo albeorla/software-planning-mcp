@@ -33,8 +33,24 @@ export class JsonFileStorage implements GoalRepository, ImplementationPlanReposi
   };
 
   constructor() {
-    const dir = path.join(os.homedir(), ".software-planning-tool");
-    this.storageFile = path.join(dir, "data.json");
+    // Persist data inside a hidden ".docs" folder located in the *current
+    // working directory* (i.e. the project root where the CLI is executed).
+    //
+    // Storing the file alongside the project keeps all planning artefacts
+    // self-contained and avoids polluting the user‘s home directory. This also
+    // mirrors common conventions used by many developer tools (e.g. Terraform)
+    // that place state into hidden folders inside the workspace.
+    const dir = path.join(process.cwd(), ".docs");
+
+    // Retain the legacy fallback inside the OS home folder for backwards
+    // compatibility – if the tool is executed outside of a normal project
+    // context (e.g. directly from the user‘s home directory) we still want a
+    // valid location. We only fall back when CWD === homedir to avoid creating
+    // a sibling "~/.docs" folder for casual invocations.
+    const isAtHomeDir = process.cwd() === os.homedir();
+    const storageDir = isAtHomeDir ? path.join(os.homedir(), ".software-planning-tool") : dir;
+
+    this.storageFile = path.join(storageDir, "data.json");
   }
 
   /** Lazily initialises the data file, idempotent. */
