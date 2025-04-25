@@ -13,6 +13,9 @@ import {
 import { WorkflowState, WorkflowPhase } from './WorkflowState.js';
 import { GovernanceToolProxy } from './GovernanceToolProxy.js';
 
+// Application services
+import { DocumentationApplicationService } from '../application/DocumentationService.js';
+
 /**
  * Main Governance Server class that acts as the sole intermediary between
  * Claude and all other tools. This server enforces workflow rules and orchestrates
@@ -898,24 +901,118 @@ export class GovernanceServer {
           const taskData = request.params.arguments as {
             title: string;
             description: string;
+            implementationSteps?: string[];
+            storyId: string;
+            filePaths?: string[];
+            components?: string[];
+            testingNotes?: {
+              unitTests?: string;
+              integrationTests?: string;
+              manualVerification?: string;
+            };
             complexity: number;
             codeExample?: string;
           };
           
-          // Create the task through the governed_planner
-          const newTask = await this.toolProxy.addTodo(taskData);
-          
-          // Update state
-          this.state.addTask(newTask);
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(newTask, null, 2),
-              },
-            ],
-          };
+          try {
+            // Create a DocumentationService instance
+            const documentationService = new DocumentationApplicationService();
+            await documentationService.initialize(); // Ensure the documentation directories are created
+            
+            // Create a comprehensive description with implementation steps
+            let enhancedDescription = taskData.description + "\n\n";
+            
+            if (taskData.implementationSteps && taskData.implementationSteps.length > 0) {
+              enhancedDescription += "## Implementation Steps\n";
+              taskData.implementationSteps.forEach((step, index) => {
+                enhancedDescription += `${index + 1}. ${step}\n`;
+              });
+              enhancedDescription += "\n";
+            }
+            
+            if (taskData.filePaths && taskData.filePaths.length > 0) {
+              enhancedDescription += "## Affected Files\n";
+              taskData.filePaths.forEach(filePath => {
+                enhancedDescription += `- \`${filePath}\`\n`;
+              });
+              enhancedDescription += "\n";
+            }
+            
+            if (taskData.components && taskData.components.length > 0) {
+              enhancedDescription += "## Affected Components\n";
+              taskData.components.forEach(component => {
+                enhancedDescription += `- ${component}\n`;
+              });
+              enhancedDescription += "\n";
+            }
+            
+            if (taskData.testingNotes) {
+              enhancedDescription += "## Testing Notes\n";
+              
+              if (taskData.testingNotes.unitTests) {
+                enhancedDescription += "### Unit Tests\n";
+                enhancedDescription += taskData.testingNotes.unitTests + "\n\n";
+              }
+              
+              if (taskData.testingNotes.integrationTests) {
+                enhancedDescription += "### Integration Tests\n";
+                enhancedDescription += taskData.testingNotes.integrationTests + "\n\n";
+              }
+              
+              if (taskData.testingNotes.manualVerification) {
+                enhancedDescription += "### Manual Verification\n";
+                enhancedDescription += taskData.testingNotes.manualVerification + "\n\n";
+              }
+            }
+            
+            if (taskData.codeExample) {
+              enhancedDescription += "## Code Example\n```\n";
+              enhancedDescription += taskData.codeExample + "\n```\n";
+            }
+            
+            // Call the createTask method
+            const result = await documentationService.createTask(
+              taskData.title,
+              enhancedDescription,
+              taskData.storyId,
+              taskData.complexity
+            );
+            
+            // Create the task through the governed_planner
+            const newTask = await this.toolProxy.addTodo({
+              title: taskData.title,
+              description: taskData.description,
+              complexity: taskData.complexity,
+              id: result.id,
+              codeExample: taskData.codeExample
+            });
+            
+            // Update state
+            this.state.addTask(newTask);
+            this.state.addThought(`Created Task document: ${result.id} - ${taskData.title} (Complexity: ${taskData.complexity})`);
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    message: "Task created successfully",
+                    id: result.id,
+                    filePath: result.filePath,
+                    title: taskData.title,
+                    complexity: taskData.complexity,
+                    todoCreated: true,
+                    todoId: newTask.id
+                  }, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              `Failed to create Task: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
         }
         
         case 'list_tasks': {
@@ -1152,19 +1249,73 @@ export class GovernanceServer {
             acceptanceCriteria?: string[];
           };
           
-          // TODO: Implement calling DocumentationService to create PRD
-          // For now, return a placeholder response
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  message: "PRD creation not yet implemented",
-                  prdData
-                }, null, 2),
-              },
-            ],
-          };
+          try {
+            // Create a DocumentationService instance
+            const documentationService = new DocumentationApplicationService();
+            await documentationService.initialize(); // Ensure the documentation directories are created
+            
+            // Combine business and technical requirements into a single description
+            let descriptionContent = `## Goal\n${prdData.goal}\n\n`;
+            descriptionContent += `## Scope\n${prdData.scope}\n\n`;
+            
+            descriptionContent += "## Business Requirements\n";
+            prdData.businessRequirements.forEach((req, index) => {
+              descriptionContent += `${index + 1}. ${req}\n`;
+            });
+            
+            if (prdData.technicalRequirements) {
+              descriptionContent += "\n## Technical Requirements\n";
+              
+              if (prdData.technicalRequirements.functional && prdData.technicalRequirements.functional.length > 0) {
+                descriptionContent += "\n### Functional\n";
+                prdData.technicalRequirements.functional.forEach((req, index) => {
+                  descriptionContent += `${index + 1}. ${req}\n`;
+                });
+              }
+              
+              if (prdData.technicalRequirements.nonFunctional && prdData.technicalRequirements.nonFunctional.length > 0) {
+                descriptionContent += "\n### Non-Functional\n";
+                prdData.technicalRequirements.nonFunctional.forEach((req, index) => {
+                  descriptionContent += `${index + 1}. ${req}\n`;
+                });
+              }
+            }
+            
+            if (prdData.acceptanceCriteria && prdData.acceptanceCriteria.length > 0) {
+              descriptionContent += "\n## Acceptance Criteria\n";
+              prdData.acceptanceCriteria.forEach((criteria, index) => {
+                descriptionContent += `${index + 1}. ${criteria}\n`;
+              });
+            }
+            
+            // Call the createPRD method
+            const result = await documentationService.createPRD(
+              prdData.title,
+              descriptionContent
+            );
+            
+            // Update the workflow state
+            this.state.addThought(`Created PRD document: ${result.id} - ${prdData.title}`);
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    message: "PRD created successfully",
+                    id: result.id,
+                    filePath: result.filePath,
+                    title: prdData.title
+                  }, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              `Failed to create PRD: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
         }
         
         case 'create_epic': {
@@ -1186,19 +1337,57 @@ export class GovernanceServer {
             rationale?: string;
           };
           
-          // TODO: Implement calling DocumentationService to create Epic
-          // For now, return a placeholder response
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  message: "Epic creation not yet implemented",
-                  epicData
-                }, null, 2),
-              },
-            ],
-          };
+          try {
+            // Create a DocumentationService instance
+            const documentationService = new DocumentationApplicationService();
+            await documentationService.initialize(); // Ensure the documentation directories are created
+            
+            // Combine fields into a comprehensive description
+            let descriptionContent = `## Goal\n${epicData.goal}\n\n`;
+            descriptionContent += `## Scope\n${epicData.scope}\n\n`;
+            
+            if (epicData.outOfScope) {
+              descriptionContent += `## Out of Scope\n${epicData.outOfScope}\n\n`;
+            }
+            
+            if (epicData.rationale) {
+              descriptionContent += `## Business Value and Rationale\n${epicData.rationale}\n\n`;
+            }
+            
+            descriptionContent += "## Related PRDs\n";
+            epicData.prdIds.forEach(prdId => {
+              descriptionContent += `- ${prdId}\n`;
+            });
+            
+            // Call the createEpic method
+            const result = await documentationService.createEpic(
+              epicData.title,
+              descriptionContent,
+              epicData.prdIds
+            );
+            
+            // Update the workflow state
+            this.state.addThought(`Created Epic document: ${result.id} - ${epicData.title}`);
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    message: "Epic created successfully",
+                    id: result.id,
+                    filePath: result.filePath,
+                    title: epicData.title
+                  }, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              `Failed to create Epic: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
         }
         
         case 'create_story': {
@@ -1227,19 +1416,44 @@ export class GovernanceServer {
             complexity: number;
           };
           
-          // TODO: Implement calling DocumentationService to create Story
-          // For now, return a placeholder response
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  message: "User Story creation not yet implemented",
-                  storyData
-                }, null, 2),
-              },
-            ],
-          };
+          try {
+            // Create a DocumentationService instance
+            const documentationService = new DocumentationApplicationService();
+            await documentationService.initialize(); // Ensure the documentation directories are created
+            
+            // Call the createUserStory method
+            const result = await documentationService.createUserStory(
+              storyData.title,
+              storyData.userType,
+              storyData.action,
+              storyData.benefit,
+              storyData.epicId
+            );
+            
+            // Update the workflow state with additional story details
+            this.state.addThought(`Created User Story document: ${result.id} - ${storyData.title} (Complexity: ${storyData.complexity})`);
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    message: "User Story created successfully",
+                    id: result.id,
+                    filePath: result.filePath,
+                    title: storyData.title,
+                    userStory: `As a ${storyData.userType}, I want to ${storyData.action}, so that ${storyData.benefit}`,
+                    complexity: storyData.complexity
+                  }, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              `Failed to create User Story: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
         }
         
         case 'create_subtask': {
@@ -1260,19 +1474,68 @@ export class GovernanceServer {
             complexity: number;
           };
           
-          // TODO: Implement calling DocumentationService to create Subtask
-          // For now, return a placeholder response
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  message: "Subtask creation not yet implemented",
-                  subtaskData
-                }, null, 2),
-              },
-            ],
-          };
+          try {
+            // Create a DocumentationService instance
+            const documentationService = new DocumentationApplicationService();
+            await documentationService.initialize(); // Ensure the documentation directories are created
+            
+            // Create a comprehensive description with file paths
+            let enhancedDescription = subtaskData.description + "\n\n";
+            
+            if (subtaskData.filePaths && subtaskData.filePaths.length > 0) {
+              enhancedDescription += "## Affected Files\n";
+              subtaskData.filePaths.forEach(filePath => {
+                enhancedDescription += `- \`${filePath}\`\n`;
+              });
+              enhancedDescription += "\n";
+            }
+            
+            enhancedDescription += `## Parent Task\n- ${subtaskData.parentTaskId}\n\n`;
+            
+            // Call the createTask method (reusing the task implementation for subtasks)
+            const result = await documentationService.createTask(
+              `[Subtask] ${subtaskData.title}`,
+              enhancedDescription,
+              "PARENT_" + subtaskData.parentTaskId, // Use a special convention for parent tasks
+              subtaskData.complexity
+            );
+            
+            // Create the subtask as a todo through the governed_planner
+            const newSubtask = await this.toolProxy.addTodo({
+              title: `[Subtask] ${subtaskData.title}`,
+              description: subtaskData.description,
+              complexity: subtaskData.complexity,
+              id: result.id,
+              parentId: subtaskData.parentTaskId
+            });
+            
+            // Update state
+            this.state.addTask(newSubtask);
+            this.state.addThought(`Created Subtask document: ${result.id} - ${subtaskData.title} (Complexity: ${subtaskData.complexity})`);
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    message: "Subtask created successfully",
+                    id: result.id,
+                    filePath: result.filePath,
+                    title: subtaskData.title,
+                    complexity: subtaskData.complexity,
+                    parentTaskId: subtaskData.parentTaskId,
+                    todoCreated: true,
+                    todoId: newSubtask.id
+                  }, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              `Failed to create Subtask: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
         }
         
         case 'create_spike': {
@@ -1297,19 +1560,46 @@ export class GovernanceServer {
             deliverables: string[];
           };
           
-          // TODO: Implement calling DocumentationService to create Spike
-          // For now, return a placeholder response
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  message: "Spike creation not yet implemented",
-                  spikeData
-                }, null, 2),
-              },
-            ],
-          };
+          try {
+            // Create a DocumentationService instance
+            const documentationService = new DocumentationApplicationService();
+            await documentationService.initialize(); // Ensure the documentation directories are created
+            
+            // Call the createSpike method
+            const result = await documentationService.createSpike(
+              spikeData.title,
+              spikeData.objective,
+              spikeData.questions,
+              spikeData.timeBox,
+              spikeData.parentReference,
+              spikeData.background,
+              spikeData.researchApproach,
+              spikeData.acceptanceCriteria,
+              spikeData.deliverables
+            );
+            
+            // Update the workflow state
+            this.state.addThought(`Created Spike document: ${result.id} - ${spikeData.title}`);
+            
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    message: "Spike created successfully",
+                    id: result.id,
+                    filePath: result.filePath,
+                    title: spikeData.title
+                  }, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            throw new McpError(
+              ErrorCode.InternalError,
+              `Failed to create Spike: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
         }
         
         case 'create_sprint': {

@@ -9,6 +9,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Governance server: `pnpm run governance`
 - Install dependencies: `pnpm install`
 
+## Governance Workflow
+
+Claude must follow the structured workflow enforced by the governance server. 
+This means using specific tools at each stage of development:
+
+1. **Planning Phase:**
+   - Use `mcp__governance__start_planning_session` to begin a planning session
+   - Use `mcp__governance__add_planning_thought` to record thoughts during planning
+   - Use `mcp__governance__create_prd`, `mcp__governance__create_epic`, etc. to create documentation
+   - Use `mcp__governance__create_task` to define implementation tasks
+
+2. **Implementation Phase:**
+   - Use `mcp__governance__start_implementation` to begin implementing a task
+   - When reading files, always call `mcp__governance__track_file_read` before using View
+   - When modifying files, always call `mcp__governance__track_file_edit` before using Edit
+   - Use `mcp__governance__update_task_status` to update task status
+   - Use `mcp__governance__log_daily_work` to log progress
+   - Use `mcp__governance__complete_implementation` when finished
+
+3. **Review and Commit Phase:**
+   - Use `mcp__governance__start_code_review` for code review
+   - Use `mcp__governance__create_branch` to create git branches
+   - Use `mcp__governance__commit_changes` to commit work
+   - Use `mcp__governance__create_pull_request` to create PRs
+
+4. **Completed Phase:**
+   - Use `mcp__governance__update_sprint_status` to update sprint status
+
+IMPORTANT: Claude must NEVER use standard file operations (View, Edit, etc.) without first calling the corresponding governance tracking tool.
+
 ## Design and Architecture
 
 This project implements a software planning tool following Domain-Driven Design (DDD) and SOLID principles. The architecture consists of:
@@ -39,42 +69,48 @@ The governance server enforces these workflow phases:
 
 **Status: In Progress**
 
-- [x] DocumentationService - Added methods to create PRDs, Epics, Stories, Tasks
+- [x] Documentation Architecture - Added comprehensive class diagrams in `/docs/architecture.md`
+- [x] Workflow Process Documentation - Created workflow diagrams in `/docs/workflow.md`
+- [x] Claude Code Integration - Added detailed integration instructions in `/docs/claude-integration.md`
+- [x] Demo Guide - Created step-by-step demo walkthrough in `/docs/demo.md`
+- [x] DocumentationService - Implemented document creation for PRDs, Epics, Stories, Tasks, Subtasks, and Spikes
+- [x] GovernanceServer - Implemented API handlers for document creation tools and basic workflow enforcement
 - [x] Enhanced DocumentTemplates with improved templates and role-based prompts
-- [x] Added API endpoints for all required governance tools in GovernanceServer
-- [x] Added Spike support for research and exploration tasks
+- [ ] Sprint Management - Need to implement sprint creation and status tracking
 - [ ] Version Control Context - GitInfrastructureService needs implementation
 - [ ] Planning Context - Need to complete entity and repository implementations
-- [ ] Infrastructure Implementation - Need repository implementations
-- [ ] Integration Between Contexts - Need to connect governance tools to application services
+- [ ] Work Logging - Need to implement daily work logging functionality
 
 ### Next Implementation Tasks (Priority Order)
 
-1. Implement API handlers in GovernanceServer.ts to connect tool endpoints to the DocumentationService
-2. Complete repositories for PRD, Epic, Story, Task entities
-3. Create GitInfrastructureService for version control operations
-4. Implement logging and status updates for tasks and sprints
+1. Implement GitInfrastructureService for version control operations
+2. Complete Sprint management functionality
+3. Implement daily work logging and tracking
+4. Enhance task status tracking across documents
 
 ## Required Implementation Tasks
 
 ### Documentation Context
-- [x] Add methods to DocumentationService for creating PRDs, Epics, Stories, Tasks
-- [ ] Implement PRDDocument, SprintDocument, DailyLog entities
-- [ ] Add document section management to MarkdownFileService
+- [x] Add methods to DocumentationService for creating PRDs, Epics, Stories, Tasks, Subtasks, and Spikes
+- [x] Create document templates and structure for all document types
+- [x] Implement MarkdownFileService for document generation
 - [ ] Implement Sprint document creation and updating
 - [ ] Add task status tracking across documents
 - [ ] Implement dashboard metrics calculation and visualization
 - [ ] Add work summary logging to daily logs
 
 ### Planning Context
-- [ ] Complete implementation of PRD, Epic, Story, Task entities
-- [ ] Implement interfaces for repositories (IPRDRepository, IEpicRepository, etc.)
-- [ ] Create PlanningApplicationService with complete functionality
+- [x] Implement basic Goal and Todo entity management
+- [x] Create PlanningService for adding/retrieving tasks
+- [ ] Implement interfaces for specialized repositories (IPRDRepository, IEpicRepository, etc.)
+- [ ] Create comprehensive PlanningApplicationService for sprint management
 - [ ] Implement sprint planning and task allocation
 
 ### Thinking Context
+- [x] Implement ThinkingProcess and Thought entities
+- [x] Create ThinkingService for recording sequential thoughts
 - [ ] Enhance ThinkingProcess entity with additional metadata
-- [ ] Complete ThinkingApplicationService implementation
+- [ ] Improve ThinkingApplicationService implementation
 
 ### Version Control Context
 - [ ] Implement Commit, Branch, PullRequest entities
@@ -83,18 +119,32 @@ The governance server enforces these workflow phases:
 - [ ] Add methods for branch management and PR creation
 
 ### Governance Server
-- [ ] Add missing tools to GovernanceServer:
-  - [ ] mcp__governance__create_epic
-  - [ ] mcp__governance__create_story
-  - [ ] mcp__governance__create_subtask
+- [x] Set up GovernanceServer with workflow state enforcement
+- [x] Implement planning phase tools in GovernanceServer:
+  - [x] mcp__governance__start_planning_session
+  - [x] mcp__governance__add_planning_thought
+  - [x] mcp__governance__create_prd
+  - [x] mcp__governance__create_epic
+  - [x] mcp__governance__create_story
+  - [x] mcp__governance__create_task
+  - [x] mcp__governance__create_subtask
+  - [x] mcp__governance__create_spike
+- [ ] Implement sprint management tools:
   - [ ] mcp__governance__create_sprint
   - [ ] mcp__governance__get_sprint_info
+  - [ ] mcp__governance__update_sprint_status
+- [ ] Implement implementation phase tools:
+  - [x] mcp__governance__start_implementation
+  - [x] mcp__governance__track_file_read
+  - [x] mcp__governance__track_file_edit
   - [ ] mcp__governance__update_task_status
   - [ ] mcp__governance__log_daily_work
+- [ ] Implement review and commit phase tools:
+  - [x] mcp__governance__complete_implementation
   - [ ] mcp__governance__start_code_review
   - [ ] mcp__governance__create_branch
   - [ ] mcp__governance__create_pull_request
-  - [ ] mcp__governance__update_sprint_status
+  - [x] mcp__governance__commit_changes
 
 ## Code Quality Standards
 

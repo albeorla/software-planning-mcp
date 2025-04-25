@@ -38,7 +38,14 @@ export class GovernanceToolProxy {
   /**
    * Add a todo item to the current plan
    */
-  public async addTodo(todoData: { title: string; description: string; complexity: number; codeExample?: string }): Promise<any> {
+  public async addTodo(todoData: { 
+    title: string; 
+    description: string; 
+    complexity: number; 
+    codeExample?: string;
+    id?: string;
+    parentId?: string;
+  }): Promise<any> {
     try {
       const result = await this.callMcpTool('mcp__governed_planner__add_todo', todoData);
       return JSON.parse(result);
