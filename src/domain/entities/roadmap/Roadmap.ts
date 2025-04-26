@@ -1,11 +1,13 @@
 import { RoadmapTimeframe } from './RoadmapTimeframe.js';
+import { Entity } from '../Entity.js';
+import { DomainEvent } from '../../events/DomainEvent.js';
 
 /**
  * Represents a product roadmap that organizes strategic initiatives
  * over different time horizons. A roadmap contains multiple roadmap items
  * and provides a high-level view of the product's direction.
  */
-export class Roadmap {
+export class Roadmap extends Entity {
   /**
    * Unique identifier for the roadmap
    */
@@ -59,6 +61,7 @@ export class Roadmap {
     createdAt: string,
     updatedAt: string
   ) {
+    super();
     this.id = id;
     this.title = title;
     this.description = description;
@@ -277,6 +280,29 @@ export class Roadmap {
     });
     
     return result;
+  }
+
+  /**
+   * Get all events from the roadmap and its children
+   */
+  public pullEvents(): DomainEvent[] {
+    // First collect all events from this entity
+    const events = this.clearEvents();
+    
+    // Then collect events from all child entities
+    this.timeframes.forEach(timeframe => {
+      // Collect events from initiatives
+      timeframe.initiatives.forEach(initiative => {
+        // Collect events from items
+        initiative.items.forEach(item => {
+          events.push(...item.domainEvents);
+        });
+        
+        events.push(...initiative.domainEvents);
+      });
+    });
+    
+    return events;
   }
 
   /**

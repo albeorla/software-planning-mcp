@@ -1,13 +1,51 @@
 import { Roadmap, RoadmapInitiative, RoadmapItem, RoadmapTimeframe } from "../../domain/entities/roadmap/index.js";
-import { RoadmapNote } from "../../domain/entities/RoadmapNote.js";
 import { IRoadmapRepository } from "../../domain/repositories/RoadmapRepository.js";
 import { IRoadmapNoteRepository } from "../../domain/repositories/RoadmapNoteRepository.js";
+import { RoadmapCreated } from "../../domain/events/RoadmapEvents.js";
+import { 
+  RoadmapCommandDispatcher, 
+  RoadmapItemRemovalService, 
+  RoadmapItemUpdateService,
+  RoadmapItemAddService,
+  TimeframeCommandService,
+  InitiativeCommandService
+} from "./commands/composite/index.js";
 
 /**
  * Service responsible for all command operations (create, update, delete) for roadmaps and roadmap notes
  * Following the Command Query Responsibility Segregation (CQRS) pattern
  */
 export class RoadmapCommandService {
+  /**
+   * Command dispatcher for handling validation, normalization, and events
+   */
+  private readonly commandDispatcher: RoadmapCommandDispatcher;
+  
+  /**
+   * Service for item removal operations
+   */
+  private readonly itemRemovalService: RoadmapItemRemovalService;
+  
+  /**
+   * Service for item update operations
+   */
+  private readonly itemUpdateService: RoadmapItemUpdateService;
+  
+  /**
+   * Service for item addition operations
+   */
+  private readonly itemAddService: RoadmapItemAddService;
+
+  /**
+   * Service for timeframe operations
+   */
+  private readonly timeframeService: TimeframeCommandService;
+
+  /**
+   * Service for initiative operations
+   */
+  private readonly initiativeService: InitiativeCommandService;
+
   /**
    * Creates a new RoadmapCommandService
    * @param roadmapRepository The repository for roadmaps
@@ -16,7 +54,14 @@ export class RoadmapCommandService {
   constructor(
     private readonly roadmapRepository: IRoadmapRepository,
     private readonly noteRepository: IRoadmapNoteRepository
-  ) {}
+  ) {
+    this.commandDispatcher = new RoadmapCommandDispatcher(roadmapRepository, noteRepository);
+    this.itemRemovalService = new RoadmapItemRemovalService(roadmapRepository);
+    this.itemUpdateService = new RoadmapItemUpdateService(roadmapRepository);
+    this.itemAddService = new RoadmapItemAddService(roadmapRepository);
+    this.timeframeService = new TimeframeCommandService(roadmapRepository);
+    this.initiativeService = new InitiativeCommandService(roadmapRepository);
+  }
 
   // -------------------------------------------------------------------------
   // Roadmap Commands
@@ -57,63 +102,21 @@ export class RoadmapCommandService {
     // Create the roadmap with initial data
     const roadmap = Roadmap.create(title, description, version, owner);
 
-    // Add all timeframes
-    let updatedRoadmap = roadmap;
-    for (const timeframeData of initialTimeframes) {
-      const timeframe = RoadmapTimeframe.create(
-        timeframeData.name,
-        timeframeData.order
-      );
-      updatedRoadmap = updatedRoadmap.addTimeframe(timeframe);
+    // Use timeframe service to add initial timeframes and their content
+    let updatedRoadmap = await this.timeframeService.addInitialTimeframes(roadmap, initialTimeframes);
 
-      // Get the newly added timeframe
-      const newTimeframe = updatedRoadmap.getTimeframe(
-        updatedRoadmap.timeframes[updatedRoadmap.timeframes.length - 1].id
-      );
-      
-      // Add initiatives to the timeframe if provided
-      if (timeframeData.initiatives && newTimeframe) {
-        for (const initiativeData of timeframeData.initiatives) {
-          const initiative = RoadmapInitiative.create(
-            initiativeData.title,
-            initiativeData.description,
-            initiativeData.category,
-            initiativeData.priority
-          );
-          
-          // Variable to track the final state of the initiative after adding items
-          let finalInitiative = initiative;
-
-          // Add items to the initiative if provided
-          if (initiativeData.items) {
-            let updatedInitiative = initiative;
-            for (const itemData of initiativeData.items) {
-              const item = RoadmapItem.create(
-                itemData.title,
-                itemData.description,
-                itemData.status || "planned",
-                itemData.relatedEntities || [],
-                itemData.notes || ""
-              );
-              updatedInitiative = updatedInitiative.addItem(item);
-            }
-            
-            // Update the final initiative with all items added
-            finalInitiative = updatedInitiative;
-          }
-          
-          // Add the initiative to the timeframe
-          const updatedTimeframe = newTimeframe.addInitiative(finalInitiative);
-          
-          // Replace the timeframe in the roadmap
-          updatedRoadmap = updatedRoadmap.removeTimeframe(newTimeframe.id).addTimeframe(updatedTimeframe);
-        }
-      }
-    }
-
-    // Save the roadmap
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    // Process, validate, normalize and save the roadmap
+    const normalizedRoadmap = await this.commandDispatcher.processAndSaveRoadmap(updatedRoadmap);
+    
+    // Dispatch a RoadmapCreated event
+    const event = new RoadmapCreated(
+      normalizedRoadmap.id,
+      normalizedRoadmap.title,
+      normalizedRoadmap.version
+    );
+    this.commandDispatcher.dispatchEvents([event]);
+    
+    return normalizedRoadmap;
   }
 
   /**
@@ -145,8 +148,8 @@ export class RoadmapCommandService {
       owner: updates.owner
     });
 
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    // Process, validate, normalize and save the roadmap
+    return await this.commandDispatcher.processAndSaveRoadmap(updatedRoadmap);
   }
 
   /**
@@ -174,15 +177,7 @@ export class RoadmapCommandService {
     name: string,
     order: number
   ): Promise<Roadmap | null> {
-    const roadmap = await this.roadmapRepository.findById(roadmapId);
-    if (!roadmap) {
-      return null;
-    }
-
-    const timeframe = RoadmapTimeframe.create(name, order);
-    const updatedRoadmap = roadmap.addTimeframe(timeframe);
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    return this.timeframeService.addTimeframe(roadmapId, name, order);
   }
 
   /**
@@ -200,20 +195,7 @@ export class RoadmapCommandService {
       order?: number;
     }
   ): Promise<Roadmap | null> {
-    const roadmap = await this.roadmapRepository.findById(roadmapId);
-    if (!roadmap) {
-      return null;
-    }
-
-    const timeframe = roadmap.getTimeframe(timeframeId);
-    if (!timeframe) {
-      throw new Error(`Timeframe with ID ${timeframeId} not found in roadmap ${roadmapId}`);
-    }
-
-    const updatedTimeframe = timeframe.update(updates);
-    const updatedRoadmap = roadmap.removeTimeframe(timeframeId).addTimeframe(updatedTimeframe);
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    return this.timeframeService.updateTimeframe(roadmapId, timeframeId, updates);
   }
 
   /**
@@ -226,14 +208,7 @@ export class RoadmapCommandService {
     roadmapId: string,
     timeframeId: string
   ): Promise<Roadmap | null> {
-    const roadmap = await this.roadmapRepository.findById(roadmapId);
-    if (!roadmap) {
-      return null;
-    }
-
-    const updatedRoadmap = roadmap.removeTimeframe(timeframeId);
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    return this.timeframeService.removeTimeframe(roadmapId, timeframeId);
   }
 
   // -------------------------------------------------------------------------
@@ -258,21 +233,14 @@ export class RoadmapCommandService {
     category: string,
     priority: string
   ): Promise<Roadmap | null> {
-    const roadmap = await this.roadmapRepository.findById(roadmapId);
-    if (!roadmap) {
-      return null;
-    }
-
-    const timeframe = roadmap.getTimeframe(timeframeId);
-    if (!timeframe) {
-      throw new Error(`Timeframe with ID ${timeframeId} not found in roadmap ${roadmapId}`);
-    }
-
-    const initiative = RoadmapInitiative.create(title, description, category, priority);
-    const updatedTimeframe = timeframe.addInitiative(initiative);
-    const updatedRoadmap = roadmap.removeTimeframe(timeframeId).addTimeframe(updatedTimeframe);
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    return this.initiativeService.addInitiative(
+      roadmapId,
+      timeframeId,
+      title,
+      description,
+      category,
+      priority
+    );
   }
 
   /**
@@ -294,26 +262,7 @@ export class RoadmapCommandService {
       priority?: string;
     }
   ): Promise<Roadmap | null> {
-    const roadmap = await this.roadmapRepository.findById(roadmapId);
-    if (!roadmap) {
-      return null;
-    }
-
-    const timeframe = roadmap.getTimeframe(timeframeId);
-    if (!timeframe) {
-      throw new Error(`Timeframe with ID ${timeframeId} not found in roadmap ${roadmapId}`);
-    }
-
-    const initiative = timeframe.getInitiative(initiativeId);
-    if (!initiative) {
-      throw new Error(`Initiative with ID ${initiativeId} not found in timeframe ${timeframeId}`);
-    }
-
-    const updatedInitiative = initiative.update(updates);
-    const updatedTimeframe = timeframe.removeInitiative(initiativeId).addInitiative(updatedInitiative);
-    const updatedRoadmap = roadmap.removeTimeframe(timeframeId).addTimeframe(updatedTimeframe);
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    return this.initiativeService.updateInitiative(roadmapId, timeframeId, initiativeId, updates);
   }
 
   /**
@@ -328,20 +277,7 @@ export class RoadmapCommandService {
     timeframeId: string,
     initiativeId: string
   ): Promise<Roadmap | null> {
-    const roadmap = await this.roadmapRepository.findById(roadmapId);
-    if (!roadmap) {
-      return null;
-    }
-
-    const timeframe = roadmap.getTimeframe(timeframeId);
-    if (!timeframe) {
-      throw new Error(`Timeframe with ID ${timeframeId} not found in roadmap ${roadmapId}`);
-    }
-
-    const updatedTimeframe = timeframe.removeInitiative(initiativeId);
-    const updatedRoadmap = roadmap.removeTimeframe(timeframeId).addTimeframe(updatedTimeframe);
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    return this.initiativeService.removeInitiative(roadmapId, timeframeId, initiativeId);
   }
 
   // -------------------------------------------------------------------------
@@ -370,34 +306,16 @@ export class RoadmapCommandService {
     relatedEntities?: string[],
     notes?: string
   ): Promise<Roadmap | null> {
-    const roadmap = await this.roadmapRepository.findById(roadmapId);
-    if (!roadmap) {
-      return null;
-    }
-
-    const timeframe = roadmap.getTimeframe(timeframeId);
-    if (!timeframe) {
-      throw new Error(`Timeframe with ID ${timeframeId} not found in roadmap ${roadmapId}`);
-    }
-
-    const initiative = timeframe.getInitiative(initiativeId);
-    if (!initiative) {
-      throw new Error(`Initiative with ID ${initiativeId} not found in timeframe ${timeframeId}`);
-    }
-
-    const item = RoadmapItem.create(
+    return this.itemAddService.addItem(
+      roadmapId,
+      timeframeId,
+      initiativeId,
       title,
       description,
-      status || "planned",
-      relatedEntities || [],
-      notes || ""
+      status,
+      relatedEntities,
+      notes
     );
-
-    const updatedInitiative = initiative.addItem(item);
-    const updatedTimeframe = timeframe.removeInitiative(initiativeId).addInitiative(updatedInitiative);
-    const updatedRoadmap = roadmap.removeTimeframe(timeframeId).addTimeframe(updatedTimeframe);
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
   }
 
   /**
@@ -422,32 +340,13 @@ export class RoadmapCommandService {
       notes?: string;
     }
   ): Promise<Roadmap | null> {
-    const roadmap = await this.roadmapRepository.findById(roadmapId);
-    if (!roadmap) {
-      return null;
-    }
-
-    const timeframe = roadmap.getTimeframe(timeframeId);
-    if (!timeframe) {
-      throw new Error(`Timeframe with ID ${timeframeId} not found in roadmap ${roadmapId}`);
-    }
-
-    const initiative = timeframe.getInitiative(initiativeId);
-    if (!initiative) {
-      throw new Error(`Initiative with ID ${initiativeId} not found in timeframe ${timeframeId}`);
-    }
-
-    const item = initiative.getItem(itemId);
-    if (!item) {
-      throw new Error(`Item with ID ${itemId} not found in initiative ${initiativeId}`);
-    }
-
-    const updatedItem = item.update(updates);
-    const updatedInitiative = initiative.removeItem(itemId).addItem(updatedItem);
-    const updatedTimeframe = timeframe.removeInitiative(initiativeId).addInitiative(updatedInitiative);
-    const updatedRoadmap = roadmap.removeTimeframe(timeframeId).addTimeframe(updatedTimeframe);
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    return this.itemUpdateService.updateItem(
+      roadmapId,
+      timeframeId,
+      initiativeId,
+      itemId,
+      updates
+    );
   }
 
   /**
@@ -464,88 +363,10 @@ export class RoadmapCommandService {
     initiativeId: string,
     itemId: string
   ): Promise<Roadmap | null> {
-    const roadmap = await this.roadmapRepository.findById(roadmapId);
-    if (!roadmap) {
-      return null;
-    }
-
-    const timeframe = roadmap.getTimeframe(timeframeId);
-    if (!timeframe) {
-      throw new Error(`Timeframe with ID ${timeframeId} not found in roadmap ${roadmapId}`);
-    }
-
-    const initiative = timeframe.getInitiative(initiativeId);
-    if (!initiative) {
-      throw new Error(`Initiative with ID ${initiativeId} not found in timeframe ${timeframeId}`);
-    }
-
-    const updatedInitiative = initiative.removeItem(itemId);
-    const updatedTimeframe = timeframe.removeInitiative(initiativeId).addInitiative(updatedInitiative);
-    const updatedRoadmap = roadmap.removeTimeframe(timeframeId).addTimeframe(updatedTimeframe);
-    await this.roadmapRepository.save(updatedRoadmap);
-    return updatedRoadmap;
+    return this.itemRemovalService.removeItem(roadmapId, timeframeId, initiativeId, itemId);
   }
 
   // -------------------------------------------------------------------------
-  // Roadmap Note Commands
+  // Note: Roadmap Note Commands have been moved to a separate service
   // -------------------------------------------------------------------------
-
-  /**
-   * Creates a new roadmap note
-   * @param title The title of the note
-   * @param content The content of the note
-   * @param category The category of the note
-   * @param priority The priority of the note
-   * @param timeline The timeline of the note
-   * @param relatedItems Related item IDs
-   * @returns The created note
-   */
-  public async createRoadmapNote(
-    title: string,
-    content: string,
-    category: string,
-    priority: string,
-    timeline: string,
-    relatedItems: string[] = []
-  ): Promise<RoadmapNote> {
-    const note = RoadmapNote.create(title, content, category, priority, timeline, relatedItems);
-    await this.noteRepository.save(note);
-    return note;
-  }
-
-  /**
-   * Updates a roadmap note
-   * @param id The ID of the note to update
-   * @param updates The fields to update
-   * @returns The updated note or null if not found
-   */
-  public async updateRoadmapNote(
-    id: string,
-    updates: {
-      title?: string;
-      content?: string;
-      category?: string;
-      priority?: string;
-      timeline?: string;
-      relatedItems?: string[];
-    }
-  ): Promise<RoadmapNote | null> {
-    const note = await this.noteRepository.findById(id);
-    if (!note) {
-      return null;
-    }
-
-    const updatedNote = note.update(updates);
-    await this.noteRepository.save(updatedNote);
-    return updatedNote;
-  }
-
-  /**
-   * Deletes a roadmap note
-   * @param id The ID of the note to delete
-   * @returns True if the note was deleted, false if not found
-   */
-  public async deleteRoadmapNote(id: string): Promise<boolean> {
-    return await this.noteRepository.delete(id);
-  }
 }

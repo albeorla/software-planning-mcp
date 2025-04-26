@@ -59,6 +59,14 @@ classDiagram
         -touch(): void
     }
     
+    class Entity {
+        <<abstract>>
+        +string id
+        #DomainEvent[] domainEvents
+        +registerEvent(DomainEvent): void
+        +releaseEvents(): DomainEvent[]
+    }
+    
     class Roadmap {
         +string id
         +string title
@@ -97,15 +105,15 @@ classDiagram
         +string id
         +string title
         +string description
-        +string category
-        +string priority
+        +Category category
+        +Priority priority
         -Map<string, RoadmapItem> _items
         +addItem(RoadmapItem): RoadmapInitiative
         +removeItem(string): RoadmapInitiative
         +get items(): RoadmapItem[]
         +getItem(string): RoadmapItem|undefined
         +update(object): RoadmapInitiative
-        +static create(string, string, string, string, RoadmapItem[]): RoadmapInitiative
+        +static create(string, string, Category, Priority, RoadmapItem[]): RoadmapInitiative
         +static fromPersistence(object): RoadmapInitiative
         +toJSON(): object
     }
@@ -114,11 +122,12 @@ classDiagram
         +string id
         +string title
         +string description
-        +string status
+        +Status status
         +string[] relatedEntities
         +string notes
         +update(object): RoadmapItem
-        +static create(string, string, string, string[], string): RoadmapItem
+        +updateStatus(Status): RoadmapItem
+        +static create(string, string, Status, string[], string): RoadmapItem
         +static fromPersistence(object): RoadmapItem
         +toJSON(): object
     }
@@ -127,14 +136,113 @@ classDiagram
         +string id
         +string title
         +string content
-        +string category
-        +string priority
+        +Category category
+        +Priority priority
         +string timeline
         +string[] relatedItems
         +string createdAt
         +string updatedAt
         +static create(object): RoadmapNote
         +update(object): RoadmapNote
+    }
+    
+    %% Domain Events
+    class DomainEvent {
+        <<interface>>
+        +Date occurredOn
+        +string eventType
+    }
+    
+    class EventDispatcher {
+        <<singleton>>
+        -static instance: EventDispatcher
+        -Map<string, Function[]> handlers
+        +static getInstance(): EventDispatcher
+        +register(string, Function): void
+        +dispatch(DomainEvent): void
+    }
+    
+    class RoadmapItemStatusChanged {
+        +string roadmapId
+        +string timeframeId
+        +string initiativeId
+        +string itemId
+        +Status oldStatus
+        +Status newStatus
+        +Date occurredOn
+        +string eventType
+    }
+    
+    class RoadmapInitiativePriorityChanged {
+        +string roadmapId
+        +string timeframeId
+        +string initiativeId
+        +Priority oldPriority
+        +Priority newPriority
+        +Date occurredOn
+        +string eventType
+    }
+    
+    %% Value Objects
+    class Priority {
+        <<value object>>
+        -string value
+        +static HIGH: Priority
+        +static MEDIUM: Priority
+        +static LOW: Priority
+        +static fromString(string): Priority
+        +equals(Priority): boolean
+        +toString(): string
+        +get isHigh(): boolean
+        +get isMedium(): boolean
+        +get isLow(): boolean
+    }
+    
+    class Status {
+        <<value object>>
+        -string value
+        +static PLANNED: Status
+        +static IN_PROGRESS: Status
+        +static COMPLETED: Status
+        +static CANCELED: Status
+        +static fromString(string): Status
+        +equals(Status): boolean
+        +toString(): string
+        +get isActive(): boolean
+        +get isCompleted(): boolean
+        +get isCanceled(): boolean
+    }
+    
+    class Category {
+        <<value object>>
+        -string value
+        +static FEATURE: Category
+        +static ENHANCEMENT: Category
+        +static BUG: Category
+        +static ARCHITECTURE: Category
+        +static fromString(string): Category
+        +equals(Category): boolean
+        +toString(): string
+    }
+    
+    %% Domain Services
+    class RoadmapPriorityService {
+        +validateInitiativePriorities(Roadmap): {valid: boolean, message?: string}
+        +rebalancePriorities(Roadmap): Roadmap
+        -countInitiativesByPriority(Roadmap, Priority): number
+    }
+    
+    class RoadmapTimeframeService {
+        +validateTimeframeSequence(Roadmap): {valid: boolean, message?: string}
+        +getNextTimeframeOrder(Roadmap): number
+        +reorderTimeframes(Roadmap): Roadmap
+    }
+    
+    class RoadmapValidationService {
+        +validateRoadmap(Roadmap): {valid: boolean, messages: string[]}
+        +validateTimeframe(RoadmapTimeframe): {valid: boolean, messages: string[]}
+        +validateInitiative(RoadmapInitiative): {valid: boolean, messages: string[]}
+        +validateItem(RoadmapItem): {valid: boolean, messages: string[]}
     }
     
     %% Repository Interfaces
@@ -209,15 +317,20 @@ classDiagram
     class RoadmapCommandService {
         -IRoadmapRepository roadmapRepository
         -IRoadmapNoteRepository noteRepository
+        -RoadmapValidationService validationService
+        -RoadmapPriorityService priorityService
+        -RoadmapTimeframeService timeframeService
+        -EventDispatcher eventDispatcher
         +createRoadmap(string, string, string, string, object[]): Promise~Roadmap~
         +updateRoadmap(string, object): Promise~Roadmap|null~
         +deleteRoadmap(string): Promise~boolean~
         +addTimeframe(string, string, number): Promise~Roadmap|null~
-        +addInitiative(string, string, string, string, string, string): Promise~Roadmap|null~
+        +addInitiative(string, string, string, string, string): Promise~Roadmap|null~
         +addItem(string, string, string, string, string, string?, string[]?, string?): Promise~Roadmap|null~
         +createRoadmapNote(string, string, string, string, string, string[]): Promise~RoadmapNote~
         +updateRoadmapNote(string, object): Promise~RoadmapNote|null~
         +deleteRoadmapNote(string): Promise~boolean~
+        -dispatchEvents(Entity): void
     }
     
     class RoadmapApplicationService {
@@ -230,7 +343,7 @@ classDiagram
         +updateRoadmap(string, object): Promise~Roadmap|null~
         +deleteRoadmap(string): Promise~boolean~
         +addTimeframe(string, string, number): Promise~Roadmap|null~
-        +addInitiative(string, string, string, string, string, string): Promise~Roadmap|null~
+        +addInitiative(string, string, string, string, string): Promise~Roadmap|null~
         +addItem(string, string, string, string, string, string?, string[]?, string?): Promise~Roadmap|null~
         +createRoadmapNote(string, string, string, string, string, string[]): Promise~RoadmapNote~
         +updateRoadmapNote(string, object): Promise~RoadmapNote|null~
@@ -341,13 +454,33 @@ classDiagram
         +searchCode(WorkflowState, ToolProxy, data): Promise~object~
     }
     
-    class RoadmapHandlers {
+    class RoadmapManagementHandlers {
+        <<static>>
+        +createRoadmap(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +getRoadmap(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +listRoadmaps(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +addTimeframe(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +addInitiative(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +addRoadmapItem(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+    }
+    
+    class RoadmapNoteHandlers {
         <<static>>
         +createRoadmapNote(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
         +getRoadmapNote(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
         +updateRoadmapNote(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
         +listRoadmapNotes(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
         +deleteRoadmapNote(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+    }
+    
+    class RoadmapComponentHandlers {
+        <<static>>
+        +updateRoadmapItem(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +removeRoadmapItem(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +updateInitiative(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +removeInitiative(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +updateTimeframe(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
+        +removeTimeframe(WorkflowState, ToolProxy, RoadmapService, data): Promise~object~
     }
     
     class SprintHandlers {
@@ -366,6 +499,15 @@ classDiagram
     }
     
     %% Relationships - Domain
+    Entity <|-- Goal
+    Entity <|-- Todo
+    Entity <|-- ThinkingProcess
+    Entity <|-- Roadmap
+    Entity <|-- RoadmapTimeframe
+    Entity <|-- RoadmapInitiative
+    Entity <|-- RoadmapItem
+    Entity <|-- RoadmapNote
+    
     Goal "1" <-- "1" ImplementationPlan
     ImplementationPlan "1" *-- "many" Todo
     ThinkingProcess "1" *-- "many" Thought
@@ -373,6 +515,26 @@ classDiagram
     Roadmap "1" *-- "many" RoadmapTimeframe
     RoadmapTimeframe "1" *-- "many" RoadmapInitiative
     RoadmapInitiative "1" *-- "many" RoadmapItem
+    
+    %% Domain Events and Value Objects
+    DomainEvent <|-- RoadmapItemStatusChanged
+    DomainEvent <|-- RoadmapInitiativePriorityChanged
+    EventDispatcher --> DomainEvent : dispatches
+    RoadmapItem --> Status : uses
+    RoadmapInitiative --> Priority : uses
+    RoadmapInitiative --> Category : uses
+    RoadmapNote --> Priority : uses
+    RoadmapNote --> Category : uses
+    
+    %% Domain Services
+    RoadmapPriorityService --> Roadmap : provides services for
+    RoadmapPriorityService --> Priority : manages
+    RoadmapTimeframeService --> Roadmap : provides services for
+    RoadmapTimeframeService --> RoadmapTimeframe : manages
+    RoadmapValidationService --> Roadmap : validates
+    RoadmapValidationService --> RoadmapTimeframe : validates
+    RoadmapValidationService --> RoadmapInitiative : validates
+    RoadmapValidationService --> RoadmapItem : validates
     
     %% Relationships - Repositories
     GoalRepository <|.. JsonFileStorage : implements
@@ -391,6 +553,10 @@ classDiagram
     RoadmapApplicationService --> RoadmapQueryService : uses
     RoadmapCommandService --> RoadmapRepository : uses
     RoadmapCommandService --> RoadmapNoteRepository : uses
+    RoadmapCommandService --> RoadmapValidationService : uses
+    RoadmapCommandService --> RoadmapPriorityService : uses
+    RoadmapCommandService --> RoadmapTimeframeService : uses
+    RoadmapCommandService --> EventDispatcher : uses
     RoadmapQueryService --> RoadmapRepository : uses
     RoadmapQueryService --> RoadmapNoteRepository : uses
     
@@ -420,11 +586,15 @@ classDiagram
     %% Planning Handler Relationships
     GovernanceServer --> SessionHandlers : uses
     GovernanceServer --> SearchHandlers : uses
-    GovernanceServer --> RoadmapHandlers : uses
+    GovernanceServer --> RoadmapManagementHandlers : uses
+    GovernanceServer --> RoadmapNoteHandlers : uses
+    GovernanceServer --> RoadmapComponentHandlers : uses
     GovernanceServer --> SprintHandlers : uses
     SessionHandlers --> PlanningApplicationService : uses
     SessionHandlers --> ThinkingApplicationService : uses
-    RoadmapHandlers --> RoadmapApplicationService : uses
+    RoadmapManagementHandlers --> RoadmapApplicationService : uses
+    RoadmapNoteHandlers --> RoadmapApplicationService : uses
+    RoadmapComponentHandlers --> RoadmapApplicationService : uses
     SprintHandlers --> DocumentationApplicationService : uses
     SearchHandlers --> GovernanceToolProxy : uses
     
@@ -449,7 +619,9 @@ Our architecture is guided by these core principles:
 
 - **Application Layer Governance**: Workflow rules and document interactions are orchestrated within the Application Services, ensuring consistency.
 
-- **Thin Transport Layer**: The MCP server (index.ts) acts primarily as a router, delegating requests to the appropriate Application Service.
+- **Thin Transport Layer**: The MCP server (governance-server.ts) acts primarily as a router, delegating requests to the appropriate Application Service.
+
+- **Domain-Driven Design**: Rich domain model with value objects, domain events, and domain services to encapsulate business rules.
 
 ## Governance Architecture and Workflow
 
@@ -572,6 +744,10 @@ The Software Planning Tool has evolved to follow a unified handler-based archite
     - `ImplementationPlan`: Collection of Tasks for a Goal/PRD
     - `Roadmap`: Strategic product roadmap with timeframes, initiatives, and items
     - `RoadmapNote`: Supplementary planning information
+  - **Value Objects**:
+    - `Priority`: High, medium, low priorities
+    - `Status`: Planned, in-progress, completed, canceled
+    - `Category`: Feature, enhancement, bug, architecture, etc.
   - **Interfaces**: 
     - IPRDRepository, IEpicRepository, IStoryRepository
     - ITaskRepository, ISprintRepository, IGoalRepository
@@ -665,6 +841,9 @@ The Software Planning Tool has evolved to follow a unified handler-based archite
    **Planning Handlers:**
    - **SessionHandlers**: Manages planning sessions, thought recording, and command execution
    - **SearchHandlers**: Provides code searching capabilities
+   - **RoadmapManagementHandlers**: Handles roadmap creation and querying
+   - **RoadmapNoteHandlers**: Manages roadmap notes
+   - **RoadmapComponentHandlers**: Handles roadmap component operations
    - **SprintHandlers**: Handles sprint creation and management
 
    **Version Control Handlers:**
@@ -683,3 +862,26 @@ This unified handler architecture with specialized sub-handlers improves the sys
 - Following the Command pattern for consistent operation handling
 - Making the system more maintainable and extensible
 - Simplifying the process of adding new functionality
+
+## Domain Events and Services
+
+Our architecture now incorporates domain events and domain services to better align with DDD principles:
+
+1. **Domain Events**:
+   - Event objects that represent important domain occurrences
+   - Used for cross-aggregate communication
+   - Handled by centralized EventDispatcher
+   - Examples: RoadmapItemStatusChanged, RoadmapInitiativePriorityChanged
+
+2. **Domain Services**:
+   - Services encapsulating operations that don't belong to a single entity
+   - Focus on business rules and domain logic
+   - Examples: RoadmapPriorityService, RoadmapTimeframeService, RoadmapValidationService
+
+3. **Value Objects**:
+   - Immutable objects representing domain concepts
+   - Contain validation and behavior
+   - Used in place of primitive types
+   - Examples: Priority, Status, Category
+
+These architectural elements enable a richer domain model that better captures business rules and domain knowledge.

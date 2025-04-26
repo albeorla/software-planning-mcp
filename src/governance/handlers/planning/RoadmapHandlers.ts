@@ -2,6 +2,7 @@ import { WorkflowState } from "../../WorkflowState.js";
 import { GovernanceToolProxy } from "../../GovernanceToolProxy.js";
 import { RoadmapApplicationService } from "../../../application/roadmap/index.js";
 import { RoadmapManagementHandlers, RoadmapNoteHandlers } from "./roadmap/index.js";
+import { RoadmapComponentHandlers } from "./roadmap/components/RoadmapComponentHandlers.js";
 
 /**
  * @deprecated This class is maintained for backward compatibility.
@@ -93,7 +94,8 @@ export class RoadmapHandlers {
     }
   ): Promise<{ success: boolean; timeframe: any }> {
     console.warn('RoadmapHandlers.addTimeframe is deprecated. Use RoadmapManagementHandlers.addTimeframe instead.');
-    return RoadmapManagementHandlers.addTimeframe(state, proxy, roadmapService, data);
+    // Use the component handlers which implement the addTimeframe method
+    return RoadmapComponentHandlers.addTimeframe(state, proxy, roadmapService, data);
   }
 
   // -------------------------------------------------------------------------
@@ -117,7 +119,8 @@ export class RoadmapHandlers {
     }
   ): Promise<{ success: boolean; initiative: any }> {
     console.warn('RoadmapHandlers.addInitiative is deprecated. Use RoadmapManagementHandlers.addInitiative instead.');
-    return RoadmapManagementHandlers.addInitiative(state, proxy, roadmapService, data);
+    // Use the component handlers which implement the addInitiative method
+    return RoadmapComponentHandlers.addInitiative(state, proxy, roadmapService, data);
   }
 
   // -------------------------------------------------------------------------
@@ -143,7 +146,8 @@ export class RoadmapHandlers {
     }
   ): Promise<{ success: boolean; item: any }> {
     console.warn('RoadmapHandlers.addItem is deprecated. Use RoadmapManagementHandlers.addItem instead.');
-    return RoadmapManagementHandlers.addItem(state, proxy, roadmapService, data);
+    // Use the component handlers which implement the addItem method
+    return RoadmapComponentHandlers.addItem(state, proxy, roadmapService, data);
   }
 
   // -------------------------------------------------------------------------

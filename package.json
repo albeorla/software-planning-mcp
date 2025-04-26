@@ -5,25 +5,31 @@
   "private": true,
   "type": "module",
   "bin": {
-    "software-planning-tool": "./build/index.js",
     "governance-server": "./build/governance-server.js"
   },
   "files": [
     "build"
   ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755') && require('fs').chmodSync('build/governance-server.js', '755')\"",
-    "prepare": "npm run build",
+    "build": "tsc && node -e \"require('fs').chmodSync('build/governance-server.js', '755')\"",
+    "prepare": "husky",
     "watch": "tsc --watch",
-    "inspector": "npx @modelcontextprotocol/inspector build/index.js",
-    "governance": "npx @modelcontextprotocol/inspector build/governance-server.js",
-    "metrics": "node scripts/generate-code-metrics.js > docs/code_metrics.csv && node scripts/generate-metrics-html.js"
+    "start": "npx @modelcontextprotocol/inspector build/governance-server.js",
+    "metrics": "node scripts/generate-code-metrics.js > docs/code_metrics.csv && node scripts/generate-metrics-html.js",
+    "count-lines": "scripts/count-lines.sh",
+    "check-file-length": "node scripts/check-file-length.js",
+    "postinstall": "husky"
+  },
+  "lint-staged": {
+    "*.ts": ["tsc --noEmit"]
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "0.6.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.1",
     "typescript": "^5.3.3"
   }
 }

@@ -1,9 +1,14 @@
 import { RoadmapItem } from './RoadmapItem.js';
+import { Category } from '../../value-objects/Category.js';
+import { Priority } from '../../value-objects/Priority.js';
+import { Entity } from '../Entity.js';
+import { InitiativeItemManager } from './InitiativeItemManager.js';
+import { InitiativeEventFactory } from './InitiativeEventFactory.js';
 
 /**
  * Represents an initiative in a roadmap timeframe
  */
-export class RoadmapInitiative {
+export class RoadmapInitiative extends Entity {
   /**
    * Unique identifier for the initiative
    */
@@ -20,19 +25,19 @@ export class RoadmapInitiative {
   public readonly description: string;
   
   /**
-   * Category of the initiative (e.g., "Feature", "Architecture", "Tech Debt")
+   * Category of the initiative (e.g., Feature, Architecture, Tech Debt)
    */
-  public readonly category: string;
+  public readonly category: Category;
   
   /**
-   * Priority of the initiative (e.g., "High", "Medium", "Low")
+   * Priority of the initiative (e.g., High, Medium, Low)
    */
-  public readonly priority: string;
+  public readonly priority: Priority;
   
   /**
-   * The items within this initiative
+   * Manager for the items within this initiative
    */
-  private readonly _items: Map<string, RoadmapItem>;
+  private readonly _itemManager: InitiativeItemManager;
 
   /**
    * Creates a new RoadmapInitiative
@@ -41,16 +46,17 @@ export class RoadmapInitiative {
     id: string,
     title: string,
     description: string,
-    category: string,
-    priority: string,
-    items: Map<string, RoadmapItem>
+    category: Category,
+    priority: Priority,
+    itemManager: InitiativeItemManager
   ) {
+    super();
     this.id = id;
     this.title = title;
     this.description = description;
     this.category = category;
     this.priority = priority;
-    this._items = items;
+    this._itemManager = itemManager;
   }
 
   /**
@@ -59,24 +65,24 @@ export class RoadmapInitiative {
   public static create(
     title: string,
     description: string,
-    category: string,
-    priority: string,
+    category: Category | string,
+    priority: Priority | string,
     initialItems: RoadmapItem[] = []
   ): RoadmapInitiative {
     const id = `initiative-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     
-    const itemsMap = new Map<string, RoadmapItem>();
-    initialItems.forEach(item => {
-      itemsMap.set(item.id, item);
-    });
+    const categoryValue = typeof category === 'string' ? Category.fromString(category) : category;
+    const priorityValue = typeof priority === 'string' ? Priority.fromString(priority) : priority;
+    
+    const itemManager = InitiativeItemManager.fromItems(initialItems);
     
     return new RoadmapInitiative(
       id,
       title,
       description,
-      category,
-      priority,
-      itemsMap
+      categoryValue,
+      priorityValue,
+      itemManager
     );
   }
 
@@ -84,60 +90,18 @@ export class RoadmapInitiative {
    * Factory method to recreate a RoadmapInitiative from persistence
    */
   public static fromPersistence(data: any): RoadmapInitiative {
-    const itemsMap = new Map<string, RoadmapItem>();
+    const itemManager = InitiativeItemManager.fromPersistence(data.items || []);
     
-    if (Array.isArray(data.items)) {
-      data.items.forEach((item: any) => {
-        const roadmapItem = RoadmapItem.fromPersistence(item);
-        itemsMap.set(roadmapItem.id, roadmapItem);
-      });
-    }
+    const categoryValue = typeof data.category === 'string' ? Category.fromString(data.category) : data.category;
+    const priorityValue = typeof data.priority === 'string' ? Priority.fromString(data.priority) : data.priority;
     
     return new RoadmapInitiative(
       data.id,
       data.title,
       data.description,
-      data.category,
-      data.priority,
-      itemsMap
-    );
-  }
-
-  /**
-   * Adds an item to this initiative
-   */
-  public addItem(item: RoadmapItem): RoadmapInitiative {
-    const updatedItems = new Map(this._items);
-    updatedItems.set(item.id, item);
-    
-    return new RoadmapInitiative(
-      this.id,
-      this.title,
-      this.description,
-      this.category,
-      this.priority,
-      updatedItems
-    );
-  }
-
-  /**
-   * Removes an item from this initiative
-   */
-  public removeItem(itemId: string): RoadmapInitiative {
-    if (!this._items.has(itemId)) {
-      throw new Error(`Item with ID ${itemId} not found in initiative`);
-    }
-    
-    const updatedItems = new Map(this._items);
-    updatedItems.delete(itemId);
-    
-    return new RoadmapInitiative(
-      this.id,
-      this.title,
-      this.description,
-      this.category,
-      this.priority,
-      updatedItems
+      categoryValue,
+      priorityValue,
+      itemManager
     );
   }
 
@@ -145,33 +109,172 @@ export class RoadmapInitiative {
    * Returns all items in this initiative
    */
   public get items(): RoadmapItem[] {
-    return Array.from(this._items.values());
+    return this._itemManager.items;
   }
 
   /**
    * Gets an item by ID
    */
   public getItem(itemId: string): RoadmapItem | undefined {
-    return this._items.get(itemId);
+    return this._itemManager.getItem(itemId);
+  }
+
+  /**
+   * Adds an item to this initiative
+   * @param item The item to add
+   * @param context Optional context information for event generation
+   */
+  public addItem(
+    item: RoadmapItem, 
+    context?: { 
+      roadmapId?: string; 
+      timeframeId?: string; 
+    }
+  ): RoadmapInitiative {
+    const itemContext = context ? {
+      ...context,
+      initiativeId: this.id
+    } : undefined;
+    
+    const updatedItemManager = this._itemManager.addItem(item, itemContext);
+    
+    const updatedInitiative = new RoadmapInitiative(
+      this.id,
+      this.title,
+      this.description,
+      this.category,
+      this.priority,
+      updatedItemManager
+    );
+    
+    // Transfer events from the item manager to the initiative
+    updatedItemManager.domainEvents.forEach(event => {
+      updatedInitiative.registerEvent(event);
+    });
+    
+    return updatedInitiative;
+  }
+
+  /**
+   * Removes an item from this initiative
+   */
+  public removeItem(itemId: string): RoadmapInitiative {
+    const updatedItemManager = this._itemManager.removeItem(itemId);
+    
+    return new RoadmapInitiative(
+      this.id,
+      this.title,
+      this.description,
+      this.category,
+      this.priority,
+      updatedItemManager
+    );
   }
 
   /**
    * Updates this initiative with new values
+   * @param updates The fields to update
+   * @param context Optional context information for event generation
    */
-  public update(updates: {
-    title?: string;
-    description?: string;
-    category?: string;
-    priority?: string;
-  }): RoadmapInitiative {
-    return new RoadmapInitiative(
+  public update(
+    updates: {
+      title?: string;
+      description?: string;
+      category?: Category | string;
+      priority?: Priority | string;
+    },
+    context?: {
+      roadmapId?: string;
+      timeframeId?: string;
+    }
+  ): RoadmapInitiative {
+    let categoryValue = this.category;
+    if (updates.category !== undefined) {
+      categoryValue = typeof updates.category === 'string' 
+        ? Category.fromString(updates.category) 
+        : updates.category;
+    }
+
+    let priorityValue = this.priority;
+    if (updates.priority !== undefined) {
+      priorityValue = typeof updates.priority === 'string' 
+        ? Priority.fromString(updates.priority) 
+        : updates.priority;
+    }
+
+    const updatedInitiative = new RoadmapInitiative(
       this.id,
       updates.title ?? this.title,
       updates.description ?? this.description,
-      updates.category ?? this.category,
-      updates.priority ?? this.priority,
-      this._items
+      categoryValue,
+      priorityValue,
+      this._itemManager
     );
+    
+    // Register events if context is provided
+    if (context?.roadmapId && context?.timeframeId) {
+      const eventContext = {
+        roadmapId: context.roadmapId,
+        timeframeId: context.timeframeId,
+        initiativeId: this.id
+      };
+      
+      // Check for priority change
+      if (updates.priority !== undefined) {
+        const priorityEvent = InitiativeEventFactory.createPriorityChangedEvent(
+          this.priority,
+          priorityValue,
+          eventContext
+        );
+        if (priorityEvent) {
+          updatedInitiative.registerEvent(priorityEvent);
+        }
+      }
+      
+      // Check for category change
+      if (updates.category !== undefined) {
+        const categoryEvent = InitiativeEventFactory.createCategoryChangedEvent(
+          this.category,
+          categoryValue,
+          eventContext
+        );
+        if (categoryEvent) {
+          updatedInitiative.registerEvent(categoryEvent);
+        }
+      }
+    }
+
+    return updatedInitiative;
+  }
+  
+  /**
+   * Updates the priority of this initiative
+   * @param newPriority The new priority
+   * @param context The context information for event generation
+   */
+  public updatePriority(
+    newPriority: Priority | string,
+    context: {
+      roadmapId: string;
+      timeframeId: string;
+    }
+  ): RoadmapInitiative {
+    return this.update({ priority: newPriority }, context);
+  }
+  
+  /**
+   * Updates the category of this initiative
+   * @param newCategory The new category
+   * @param context The context information for event generation
+   */
+  public updateCategory(
+    newCategory: Category | string,
+    context: {
+      roadmapId: string;
+      timeframeId: string;
+    }
+  ): RoadmapInitiative {
+    return this.update({ category: newCategory }, context);
   }
 
   /**
@@ -182,9 +285,9 @@ export class RoadmapInitiative {
       id: this.id,
       title: this.title,
       description: this.description,
-      category: this.category,
-      priority: this.priority,
-      items: this.items.map(item => item.toJSON())
+      category: this.category.toString(),
+      priority: this.priority.toString(),
+      items: this._itemManager.toJSON()
     };
   }
 }

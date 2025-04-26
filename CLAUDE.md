@@ -6,8 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Build: `pnpm run build`
 - Watch mode: `pnpm run watch`
 - Test with MCP inspector: `pnpm run inspector`
-- Governance server: `pnpm run governance`
+- Governance server: `pnpm run start`
 - Generate metrics: `pnpm run metrics`
+- Count lines: `pnpm run count-lines [threshold]`
+- Check file length: `pnpm run check-file-length`
 - Install dependencies: `pnpm install`
 
 ## Governance Workflow
@@ -56,10 +58,16 @@ This project follows DDD principles closely, with continuous refinement of the d
 - **Rich Domain Models**: Entities with behavior instead of anemic models
 - **Aggregates & Aggregate Roots**: Proper encapsulation of related entities 
 - **Repository Pattern**: Clean abstraction for persistence concerns
+- **Value Objects**: Immutable objects that encapsulate domain concepts and validation
 - **Bounded Contexts**: Clear separation between Planning, Thinking, Documentation, and Version Control
 - **Domain Language**: Ubiquitous language throughout the codebase
 
-For a comprehensive analysis of our domain model implementation and ongoing improvements, see the [Domain Model Analysis document](/docs/domain_model_analysis.md).
+Key Documentation:
+- [Domain Model Analysis](/docs/domain_model_analysis.md) - Analysis and improvement plan
+- [Refactoring Progress](/docs/refactoring-progress.md) - Summary of refactoring achievements
+- [Value Objects](/docs/value-objects.md) - Guide to our value object implementation
+- [Domain Events](/docs/domain-events.md) - Guide to our domain events implementation
+- [Domain Services](/docs/domain-services.md) - Guide to our domain services implementation
 
 ### Bounded Contexts
 
@@ -139,9 +147,9 @@ The code has been refactored to use specialized handlers organized by bounded co
      - ✅ Created RoadmapApplicationService as a facade combining both services
      - ✅ Applied CQRS pattern to separate read/write operations
      - ✅ Maintained backward compatibility with deprecation notices
-   - Create value objects for Priority, Status, etc.
-   - Implement domain events for cross-aggregate communication
-   - Add domain services for cross-entity operations
+   - ✅ Created value objects for Priority, Status, and Category
+   - ✅ Implemented domain events for cross-aggregate communication
+   - ✅ Added domain services for cross-entity operations
 
 2. **Refactor Other Large Files**: Continue to split large files (>300 lines) according to metrics
 3. Implement GitInfrastructureService for version control operations
@@ -235,6 +243,28 @@ The code has been refactored to use specialized handlers organized by bounded co
   - [x] mcp__governance__commit_changes (VersionControlHandlers)
   - [ ] Complete backend implementation for version control
 
+## Code Quality Tools
+
+The project includes several tools to enforce code quality standards:
+
+1. **Line Count Checking**:
+   - Use `pnpm run count-lines [threshold]` to find files exceeding the threshold (default: 300 lines)
+   - Git pre-commit hooks automatically block commits with files exceeding 400 lines
+
+2. **Git Hooks (via Husky)**:
+   - Automatically installed via the `prepare` script in package.json
+   - Pre-commit hooks run file size checks and TypeScript type checking
+
+3. **Lint-Staged**:
+   - Runs TypeScript type checking on staged files
+   - Configured in package.json
+
+When working on file refactoring:
+1. Identify large files with `pnpm run count-lines`
+2. Split large files into smaller ones following Single Responsibility Principle
+3. Git hooks will block commits of files over 400 lines
+4. TypeScript type checking ensures refactored code remains type-safe
+
 ## Code Quality Standards
 
 ### SOLID Principles
@@ -265,6 +295,8 @@ The code has been refactored to use specialized handlers organized by bounded co
 - **Command Pattern**: For encapsulating actions
 - **Observer Pattern**: For event notifications between bounded contexts
 - **Proxy Pattern**: As implemented in GovernanceToolProxy
+- **Facade Pattern**: As implemented in composite services
+- **CQRS Pattern**: Command Query Responsibility Segregation for service organization
 
 ### Style Guidelines
 - **Naming**:
@@ -277,6 +309,8 @@ The code has been refactored to use specialized handlers organized by bounded co
   - One class per file (with exceptions for related small classes)
   - Organize files by bounded context, then by layer
   - Group related components together
+  - **Maximum file size**: Keep files under 400 lines (enforced by git hooks)
+  - When a file exceeds 400 lines, split it into multiple files following SRP
 
 - **Methods**:
   - Small, focused functions with a single responsibility
@@ -305,6 +339,7 @@ When implementing new features or reviewing code, check:
 - [ ] Interfaces used for abstractions
 - [ ] Dependencies injected, not created internally
 - [ ] No unnecessary inheritance
+- [ ] Files are under 400 lines in length
 
 ### Error Handling
 - [ ] Specific error types used
