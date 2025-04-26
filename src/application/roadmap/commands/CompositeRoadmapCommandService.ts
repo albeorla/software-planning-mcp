@@ -1,64 +1,41 @@
-import { Roadmap } from "../../domain/entities/roadmap/index.js";
-import { RoadmapNote } from "../../domain/entities/RoadmapNote.js";
-import { IRoadmapRepository } from "../../domain/repositories/RoadmapRepository.js";
-import { IRoadmapNoteRepository } from "../../domain/repositories/RoadmapNoteRepository.js";
-import { CompositeRoadmapCommandService } from "./commands/CompositeRoadmapCommandService.js";
-import { RoadmapQueryService } from "./RoadmapQueryService.js";
+import { IRoadmapRepository } from "../../../domain/repositories/RoadmapRepository.js";
+import { IRoadmapNoteRepository } from "../../../domain/repositories/RoadmapNoteRepository.js";
+import { Roadmap } from "../../../domain/entities/Roadmap.js";
+import { RoadmapNote } from "../../../domain/entities/RoadmapNote.js";
+import { RoadmapEntityCommandService } from "./RoadmapEntityCommandService.js";
+import { TimeframeCommandService } from "./TimeframeCommandService.js";
+import { InitiativeCommandService } from "./InitiativeCommandService.js";
+import { ItemCommandService } from "./ItemCommandService.js";
+import { RoadmapNoteCommandService } from "./RoadmapNoteCommandService.js";
 
 /**
- * Facade service that combines query and command services for roadmap operations
- * Maintains backward compatibility with the original RoadmapService
+ * Composite service that delegates roadmap command operations to specialized services
+ * Combines all roadmap-related command operations in a single facade
  */
-export class RoadmapApplicationService {
-  private readonly commandService: CompositeRoadmapCommandService;
-  private readonly queryService: RoadmapQueryService;
+export class CompositeRoadmapCommandService {
+  private roadmapEntityCommandService: RoadmapEntityCommandService;
+  private timeframeCommandService: TimeframeCommandService;
+  private initiativeCommandService: InitiativeCommandService;
+  private itemCommandService: ItemCommandService;
+  private roadmapNoteCommandService: RoadmapNoteCommandService;
 
   /**
-   * Creates a new RoadmapApplicationService
+   * Creates a new CompositeRoadmapCommandService
    * @param roadmapRepository The repository for roadmaps
    * @param noteRepository The repository for roadmap notes
    */
   constructor(
-    roadmapRepository: IRoadmapRepository,
-    noteRepository: IRoadmapNoteRepository
+    private readonly roadmapRepository: IRoadmapRepository,
+    private readonly noteRepository: IRoadmapNoteRepository
   ) {
-    this.commandService = new CompositeRoadmapCommandService(roadmapRepository, noteRepository);
-    this.queryService = new RoadmapQueryService(roadmapRepository, noteRepository);
+    this.roadmapEntityCommandService = new RoadmapEntityCommandService(roadmapRepository);
+    this.timeframeCommandService = new TimeframeCommandService(roadmapRepository);
+    this.initiativeCommandService = new InitiativeCommandService(roadmapRepository);
+    this.itemCommandService = new ItemCommandService(roadmapRepository);
+    this.roadmapNoteCommandService = new RoadmapNoteCommandService(noteRepository);
   }
 
-  // -------------------------------------------------------------------------
-  // Roadmap Query Methods
-  // -------------------------------------------------------------------------
-
-  /**
-   * Gets a roadmap by ID
-   * @param id The ID of the roadmap to get
-   * @returns The roadmap, or null if not found
-   */
-  public async getRoadmap(id: string): Promise<Roadmap | null> {
-    return this.queryService.getRoadmap(id);
-  }
-
-  /**
-   * Gets all roadmaps
-   * @returns All roadmaps
-   */
-  public async getAllRoadmaps(): Promise<Roadmap[]> {
-    return this.queryService.getAllRoadmaps();
-  }
-
-  /**
-   * Gets all roadmaps by owner
-   * @param owner The owner of the roadmaps
-   * @returns All roadmaps owned by the specified owner
-   */
-  public async getRoadmapsByOwner(owner: string): Promise<Roadmap[]> {
-    return this.queryService.getRoadmapsByOwner(owner);
-  }
-
-  // -------------------------------------------------------------------------
-  // Roadmap Command Methods
-  // -------------------------------------------------------------------------
+  // Roadmap Entity Operations
 
   /**
    * Creates a new roadmap
@@ -66,7 +43,7 @@ export class RoadmapApplicationService {
    * @param description The description of the roadmap
    * @param version The version of the roadmap
    * @param owner The owner of the roadmap
-   * @param initialTimeframes Optional array of initial timeframes
+   * @param initialTimeframes Optional initial timeframes
    * @returns The created roadmap
    */
   public async createRoadmap(
@@ -92,7 +69,7 @@ export class RoadmapApplicationService {
       }>;
     }> = []
   ): Promise<Roadmap> {
-    return this.commandService.createRoadmap(
+    return this.roadmapEntityCommandService.createRoadmap(
       title,
       description,
       version,
@@ -116,7 +93,7 @@ export class RoadmapApplicationService {
       owner?: string;
     }
   ): Promise<Roadmap | null> {
-    return this.commandService.updateRoadmap(id, updates);
+    return this.roadmapEntityCommandService.updateRoadmap(id, updates);
   }
 
   /**
@@ -125,12 +102,10 @@ export class RoadmapApplicationService {
    * @returns True if the roadmap was deleted, false if not found
    */
   public async deleteRoadmap(id: string): Promise<boolean> {
-    return this.commandService.deleteRoadmap(id);
+    return this.roadmapEntityCommandService.deleteRoadmap(id);
   }
 
-  // -------------------------------------------------------------------------
-  // Timeframe Methods
-  // -------------------------------------------------------------------------
+  // Timeframe Operations
 
   /**
    * Adds a timeframe to a roadmap
@@ -144,11 +119,11 @@ export class RoadmapApplicationService {
     name: string,
     order: number
   ): Promise<Roadmap | null> {
-    return this.commandService.addTimeframe(roadmapId, name, order);
+    return this.timeframeCommandService.addTimeframe(roadmapId, name, order);
   }
 
   /**
-   * Updates a timeframe
+   * Updates a timeframe in a roadmap
    * @param roadmapId The ID of the roadmap
    * @param timeframeId The ID of the timeframe to update
    * @param updates The fields to update
@@ -162,7 +137,7 @@ export class RoadmapApplicationService {
       order?: number;
     }
   ): Promise<Roadmap | null> {
-    return this.commandService.updateTimeframe(roadmapId, timeframeId, updates);
+    return this.timeframeCommandService.updateTimeframe(roadmapId, timeframeId, updates);
   }
 
   /**
@@ -175,12 +150,10 @@ export class RoadmapApplicationService {
     roadmapId: string,
     timeframeId: string
   ): Promise<Roadmap | null> {
-    return this.commandService.removeTimeframe(roadmapId, timeframeId);
+    return this.timeframeCommandService.removeTimeframe(roadmapId, timeframeId);
   }
 
-  // -------------------------------------------------------------------------
-  // Initiative Methods
-  // -------------------------------------------------------------------------
+  // Initiative Operations
 
   /**
    * Adds an initiative to a timeframe
@@ -200,7 +173,7 @@ export class RoadmapApplicationService {
     category: string,
     priority: string
   ): Promise<Roadmap | null> {
-    return this.commandService.addInitiative(
+    return this.initiativeCommandService.addInitiative(
       roadmapId,
       timeframeId,
       title,
@@ -211,7 +184,7 @@ export class RoadmapApplicationService {
   }
 
   /**
-   * Updates an initiative
+   * Updates an initiative in a timeframe
    * @param roadmapId The ID of the roadmap
    * @param timeframeId The ID of the timeframe
    * @param initiativeId The ID of the initiative to update
@@ -229,7 +202,7 @@ export class RoadmapApplicationService {
       priority?: string;
     }
   ): Promise<Roadmap | null> {
-    return this.commandService.updateInitiative(
+    return this.initiativeCommandService.updateInitiative(
       roadmapId,
       timeframeId,
       initiativeId,
@@ -249,16 +222,14 @@ export class RoadmapApplicationService {
     timeframeId: string,
     initiativeId: string
   ): Promise<Roadmap | null> {
-    return this.commandService.removeInitiative(
+    return this.initiativeCommandService.removeInitiative(
       roadmapId,
       timeframeId,
       initiativeId
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Item Methods
-  // -------------------------------------------------------------------------
+  // Item Operations
 
   /**
    * Adds an item to an initiative
@@ -269,7 +240,7 @@ export class RoadmapApplicationService {
    * @param description The description of the item
    * @param status The status of the item
    * @param relatedEntities Related entity IDs
-   * @param notes Additional notes
+   * @param notes Notes for the item
    * @returns The updated roadmap or null if not found
    */
   public async addItem(
@@ -282,7 +253,7 @@ export class RoadmapApplicationService {
     relatedEntities?: string[],
     notes?: string
   ): Promise<Roadmap | null> {
-    return this.commandService.addItem(
+    return this.itemCommandService.addItem(
       roadmapId,
       timeframeId,
       initiativeId,
@@ -295,7 +266,7 @@ export class RoadmapApplicationService {
   }
 
   /**
-   * Updates an item
+   * Updates an item in an initiative
    * @param roadmapId The ID of the roadmap
    * @param timeframeId The ID of the timeframe
    * @param initiativeId The ID of the initiative
@@ -316,7 +287,7 @@ export class RoadmapApplicationService {
       notes?: string;
     }
   ): Promise<Roadmap | null> {
-    return this.commandService.updateItem(
+    return this.itemCommandService.updateItem(
       roadmapId,
       timeframeId,
       initiativeId,
@@ -339,7 +310,7 @@ export class RoadmapApplicationService {
     initiativeId: string,
     itemId: string
   ): Promise<Roadmap | null> {
-    return this.commandService.removeItem(
+    return this.itemCommandService.removeItem(
       roadmapId,
       timeframeId,
       initiativeId,
@@ -347,57 +318,7 @@ export class RoadmapApplicationService {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Roadmap Note Query Methods
-  // -------------------------------------------------------------------------
-
-  /**
-   * Gets a roadmap note by ID
-   * @param id The ID of the note to get
-   * @returns The note, or null if not found
-   */
-  public async getRoadmapNote(id: string): Promise<RoadmapNote | null> {
-    return this.queryService.getRoadmapNote(id);
-  }
-
-  /**
-   * Gets all roadmap notes
-   * @returns All roadmap notes
-   */
-  public async getAllRoadmapNotes(): Promise<RoadmapNote[]> {
-    return this.queryService.getAllRoadmapNotes();
-  }
-
-  /**
-   * Gets all roadmap notes by category
-   * @param category The category to filter by
-   * @returns All roadmap notes in the specified category
-   */
-  public async getRoadmapNotesByCategory(category: string): Promise<RoadmapNote[]> {
-    return this.queryService.getRoadmapNotesByCategory(category);
-  }
-
-  /**
-   * Gets all roadmap notes by priority
-   * @param priority The priority to filter by
-   * @returns All roadmap notes with the specified priority
-   */
-  public async getRoadmapNotesByPriority(priority: string): Promise<RoadmapNote[]> {
-    return this.queryService.getRoadmapNotesByPriority(priority);
-  }
-
-  /**
-   * Gets all roadmap notes by timeline
-   * @param timeline The timeline to filter by
-   * @returns All roadmap notes with the specified timeline
-   */
-  public async getRoadmapNotesByTimeline(timeline: string): Promise<RoadmapNote[]> {
-    return this.queryService.getRoadmapNotesByTimeline(timeline);
-  }
-
-  // -------------------------------------------------------------------------
-  // Roadmap Note Command Methods
-  // -------------------------------------------------------------------------
+  // Roadmap Note Operations
 
   /**
    * Creates a new roadmap note
@@ -417,7 +338,7 @@ export class RoadmapApplicationService {
     timeline: string,
     relatedItems: string[] = []
   ): Promise<RoadmapNote> {
-    return this.commandService.createRoadmapNote(
+    return this.roadmapNoteCommandService.createRoadmapNote(
       title,
       content,
       category,
@@ -444,7 +365,7 @@ export class RoadmapApplicationService {
       relatedItems?: string[];
     }
   ): Promise<RoadmapNote | null> {
-    return this.commandService.updateRoadmapNote(id, updates);
+    return this.roadmapNoteCommandService.updateRoadmapNote(id, updates);
   }
 
   /**
@@ -453,6 +374,6 @@ export class RoadmapApplicationService {
    * @returns True if the note was deleted, false if not found
    */
   public async deleteRoadmapNote(id: string): Promise<boolean> {
-    return this.commandService.deleteRoadmapNote(id);
+    return this.roadmapNoteCommandService.deleteRoadmapNote(id);
   }
 }

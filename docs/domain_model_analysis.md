@@ -36,20 +36,27 @@ Our system is well-organized into these bounded contexts:
 src/index.ts                                   542 lines
 src/application/DocumentTemplates.ts           485 lines
 src/application/TemplateService.ts             336 lines
-src/application/roadmap/RoadmapApplicationService.ts 323 lines
+src/application/roadmap/RoadmapApplicationService.ts 458 lines
 src/domain/entities/roadmap/Roadmap.ts         297 lines
 src/application/DocumentationService.ts        285 lines
-src/application/roadmap/RoadmapCommandService.ts 273 lines
 src/governance/handlers/planning/RoadmapHandlers.ts 270 lines
 src/governance/config/TaskToolDefinitions.ts   232 lines
 src/governance/handlers/task/TaskCreationHandlers.ts 226 lines
+src/application/roadmap/commands/CompositeRoadmapCommandService.ts 224 lines
 ```
 
-The original large `RoadmapService.ts` (597 lines) has been successfully refactored following CQRS:
-- `src/application/roadmap/RoadmapApplicationService.ts`: 323 lines (Facade combining query and command)
-- `src/application/roadmap/RoadmapCommandService.ts`: 273 lines (Write operations)
+The original large `RoadmapService.ts` (597 lines) has been successfully refactored following CQRS and the Single Responsibility Principle:
+
+- `src/application/roadmap/RoadmapApplicationService.ts`: 458 lines (Facade combining query and command)
 - `src/application/roadmap/RoadmapQueryService.ts`: 193 lines (Read operations)
-- `src/application/roadmap/index.ts`: 3 lines (Exports)
+- Specialized command services:
+  - `src/application/roadmap/commands/CompositeRoadmapCommandService.ts`: 224 lines (Facade for commands)
+  - `src/application/roadmap/commands/RoadmapEntityCommandService.ts`: 101 lines
+  - `src/application/roadmap/commands/TimeframeCommandService.ts`: 101 lines
+  - `src/application/roadmap/commands/InitiativeCommandService.ts`: 107 lines
+  - `src/application/roadmap/commands/ItemCommandService.ts`: 120 lines
+  - `src/application/roadmap/commands/RoadmapNoteCommandService.ts`: 56 lines
+- `src/application/roadmap/index.ts`: 12 lines (Exports)
 - Original `src/application/RoadmapService.ts`: 97 lines (Backward compatibility facade)
 
 The original `Roadmap.ts` (689 lines) has been successfully split into more manageable files:
@@ -627,7 +634,7 @@ export class RoadmapManagementService {
 
 ### Upcoming Priorities (Revised)
 
-1. **Phase 2: Split Remaining Large Service Files (High)**
+1. **✅ Phase 2: Split Remaining Large Service Files (High)**
    - ✅ Split RoadmapHandlers.ts (666 lines) into separate handler files by responsibility
    - ✅ Split RoadmapService.ts (597 lines) into more focused service classes:
      - Created RoadmapQueryService for read operations
@@ -635,6 +642,13 @@ export class RoadmapManagementService {
      - Created RoadmapApplicationService as a facade combining both services
      - Maintained backward compatibility with re-exports and deprecation notices
    - ✅ Applied Command Query Responsibility Segregation (CQRS) pattern to separate read/write operations
+   - ✅ Further refined command operations by implementing specialized command services:
+     - Created RoadmapEntityCommandService for roadmap entity operations
+     - Created TimeframeCommandService for timeframe operations
+     - Created InitiativeCommandService for initiative operations 
+     - Created ItemCommandService for roadmap item operations
+     - Created RoadmapNoteCommandService for note operations
+     - Created CompositeRoadmapCommandService as a facade combining all command services
 
 2. **Phase 3: Implement Value Objects (High)**
    - Create Priority, Status, Category value objects
