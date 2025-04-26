@@ -58,10 +58,14 @@ This project follows DDD principles closely, with continuous refinement of the d
 - **Rich Domain Models**: Entities with behavior instead of anemic models
 - **Aggregates & Aggregate Roots**: Proper encapsulation of related entities 
 - **Repository Pattern**: Clean abstraction for persistence concerns
+- **Value Objects**: Immutable objects that encapsulate domain concepts and validation
 - **Bounded Contexts**: Clear separation between Planning, Thinking, Documentation, and Version Control
 - **Domain Language**: Ubiquitous language throughout the codebase
 
-For a comprehensive analysis of our domain model implementation and ongoing improvements, see the [Domain Model Analysis document](/docs/domain_model_analysis.md).
+Key Documentation:
+- [Domain Model Analysis](/docs/domain_model_analysis.md) - Analysis and improvement plan
+- [Refactoring Progress](/docs/refactoring-progress.md) - Summary of refactoring achievements
+- [Value Objects](/docs/value-objects.md) - Guide to our value object implementation
 
 ### Bounded Contexts
 
