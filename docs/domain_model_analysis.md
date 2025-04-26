@@ -664,6 +664,42 @@ export class RoadmapManagementService {
    - Create RoadmapPriorityService and similar services
    - Move cross-entity business rules to domain services
 
+## Code Quality Enforcement
+
+To ensure consistent code quality and prevent regression of our improvements, we've implemented automated checks:
+
+### Line Length Checking
+
+We've added automatic line length checking to prevent files from getting too large:
+
+1. **Manual checking**: Use `pnpm run count-lines [threshold]` to identify files exceeding the specified line count (default: 300)
+2. **Git hooks**: Pre-commit hooks automatically block commits with files exceeding 400 lines
+
+### Git Hooks Setup
+
+We use Husky and lint-staged to enforce code quality standards:
+
+1. **Pre-commit checks**:
+   - File line length validation (maximum 400 lines per file)
+   - TypeScript type checking on staged files
+   
+2. **Installation and configuration**:
+   - Husky is automatically installed via the `prepare` script
+   - Configuration is stored in `.husky/pre-commit` and `package.json`
+
+### How it Works
+
+When you attempt to commit changes:
+
+1. The pre-commit hook runs `scripts/check-file-length.js` to verify no file exceeds 400 lines
+2. If any file is too large, the commit is blocked with an error message listing the offending files
+3. TypeScript type checking is performed on staged files via lint-staged
+
+This ensures:
+- Code maintainability by preventing files from becoming too large
+- Code correctness by verifying type safety before commits
+- Consistent enforcement of refactoring standards across the team
+
 ## Conclusion
 
 The domain model analysis reveals a codebase with good DDD alignment but with several opportunities for improvement. The implementation plan provided here focuses on the most critical improvements first: reducing file size through better organization, replacing primitives with value objects, and adding domain events and services.
@@ -675,5 +711,6 @@ By implementing these changes, we'll achieve:
 3. Improved enforcement of business rules
 4. Easier coordination between aggregates
 5. Clearer separation of concerns
+6. Automated quality enforcement via git hooks
 
 These changes support our long-term goal of building a robust, maintainable domain model that accurately represents the business domain while remaining flexible enough to evolve as requirements change.

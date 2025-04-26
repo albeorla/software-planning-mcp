@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Test with MCP inspector: `pnpm run inspector`
 - Governance server: `pnpm run governance`
 - Generate metrics: `pnpm run metrics`
+- Count lines: `pnpm run count-lines [threshold]`
+- Check file length: `pnpm run check-file-length`
 - Install dependencies: `pnpm install`
 
 ## Governance Workflow
@@ -235,6 +237,28 @@ The code has been refactored to use specialized handlers organized by bounded co
   - [x] mcp__governance__commit_changes (VersionControlHandlers)
   - [ ] Complete backend implementation for version control
 
+## Code Quality Tools
+
+The project includes several tools to enforce code quality standards:
+
+1. **Line Count Checking**:
+   - Use `pnpm run count-lines [threshold]` to find files exceeding the threshold (default: 300 lines)
+   - Git pre-commit hooks automatically block commits with files exceeding 400 lines
+
+2. **Git Hooks (via Husky)**:
+   - Automatically installed via the `prepare` script in package.json
+   - Pre-commit hooks run file size checks and TypeScript type checking
+
+3. **Lint-Staged**:
+   - Runs TypeScript type checking on staged files
+   - Configured in package.json
+
+When working on file refactoring:
+1. Identify large files with `pnpm run count-lines`
+2. Split large files into smaller ones following Single Responsibility Principle
+3. Git hooks will block commits of files over 400 lines
+4. TypeScript type checking ensures refactored code remains type-safe
+
 ## Code Quality Standards
 
 ### SOLID Principles
@@ -265,6 +289,8 @@ The code has been refactored to use specialized handlers organized by bounded co
 - **Command Pattern**: For encapsulating actions
 - **Observer Pattern**: For event notifications between bounded contexts
 - **Proxy Pattern**: As implemented in GovernanceToolProxy
+- **Facade Pattern**: As implemented in composite services
+- **CQRS Pattern**: Command Query Responsibility Segregation for service organization
 
 ### Style Guidelines
 - **Naming**:
@@ -277,6 +303,8 @@ The code has been refactored to use specialized handlers organized by bounded co
   - One class per file (with exceptions for related small classes)
   - Organize files by bounded context, then by layer
   - Group related components together
+  - **Maximum file size**: Keep files under 400 lines (enforced by git hooks)
+  - When a file exceeds 400 lines, split it into multiple files following SRP
 
 - **Methods**:
   - Small, focused functions with a single responsibility
@@ -305,6 +333,7 @@ When implementing new features or reviewing code, check:
 - [ ] Interfaces used for abstractions
 - [ ] Dependencies injected, not created internally
 - [ ] No unnecessary inheritance
+- [ ] Files are under 400 lines in length
 
 ### Error Handling
 - [ ] Specific error types used
