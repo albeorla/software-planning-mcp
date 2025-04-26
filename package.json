@@ -5,18 +5,16 @@
   "private": true,
   "type": "module",
   "bin": {
-    "software-planning-tool": "./build/index.js",
     "governance-server": "./build/governance-server.js"
   },
   "files": [
     "build"
   ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755') && require('fs').chmodSync('build/governance-server.js', '755')\"",
+    "build": "tsc && node -e \"require('fs').chmodSync('build/governance-server.js', '755')\"",
     "prepare": "husky",
     "watch": "tsc --watch",
-    "inspector": "npx @modelcontextprotocol/inspector build/index.js",
-    "governance": "npx @modelcontextprotocol/inspector build/governance-server.js",
+    "start": "npx @modelcontextprotocol/inspector build/governance-server.js",
     "metrics": "node scripts/generate-code-metrics.js > docs/code_metrics.csv && node scripts/generate-metrics-html.js",
     "count-lines": "scripts/count-lines.sh",
     "check-file-length": "node scripts/check-file-length.js",

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Build: `pnpm run build`
 - Watch mode: `pnpm run watch`
 - Test with MCP inspector: `pnpm run inspector`
-- Governance server: `pnpm run governance`
+- Governance server: `pnpm run start`
 - Generate metrics: `pnpm run metrics`
 - Count lines: `pnpm run count-lines [threshold]`
 - Check file length: `pnpm run check-file-length`
@@ -66,6 +66,8 @@ Key Documentation:
 - [Domain Model Analysis](/docs/domain_model_analysis.md) - Analysis and improvement plan
 - [Refactoring Progress](/docs/refactoring-progress.md) - Summary of refactoring achievements
 - [Value Objects](/docs/value-objects.md) - Guide to our value object implementation
+- [Domain Events](/docs/domain-events.md) - Guide to our domain events implementation
+- [Domain Services](/docs/domain-services.md) - Guide to our domain services implementation
 
 ### Bounded Contexts
 
@@ -146,8 +148,8 @@ The code has been refactored to use specialized handlers organized by bounded co
      - ✅ Applied CQRS pattern to separate read/write operations
      - ✅ Maintained backward compatibility with deprecation notices
    - ✅ Created value objects for Priority, Status, and Category
-   - Implement domain events for cross-aggregate communication
-   - Add domain services for cross-entity operations
+   - ✅ Implemented domain events for cross-aggregate communication
+   - ✅ Added domain services for cross-entity operations
 
 2. **Refactor Other Large Files**: Continue to split large files (>300 lines) according to metrics
 3. Implement GitInfrastructureService for version control operations

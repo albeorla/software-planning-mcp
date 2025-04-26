@@ -1,9 +1,11 @@
 import { Status } from '../../value-objects/Status.js';
+import { Entity } from '../Entity.js';
+import { RoadmapItemStatusChanged } from '../../events/RoadmapEvents.js';
 
 /**
  * Represents an item in a roadmap initiative
  */
-export class RoadmapItem {
+export class RoadmapItem extends Entity {
   /**
    * Unique identifier for the item
    */
@@ -45,6 +47,7 @@ export class RoadmapItem {
     relatedEntities: string[],
     notes: string
   ) {
+    super();
     this.id = id;
     this.title = title;
     this.description = description;
@@ -100,6 +103,10 @@ export class RoadmapItem {
     status?: Status | string;
     relatedEntities?: string[];
     notes?: string;
+  }, context?: {
+    roadmapId?: string;
+    timeframeId?: string;
+    initiativeId?: string;
   }): RoadmapItem {
     let statusValue = this.status;
     if (updates.status !== undefined) {
@@ -108,7 +115,7 @@ export class RoadmapItem {
         : updates.status;
     }
 
-    return new RoadmapItem(
+    const updatedItem = new RoadmapItem(
       this.id,
       updates.title ?? this.title,
       updates.description ?? this.description,
@@ -116,6 +123,71 @@ export class RoadmapItem {
       updates.relatedEntities ?? this.relatedEntities,
       updates.notes ?? this.notes
     );
+
+    // If status changed and we have context information, register an event
+    if (context && updates.status !== undefined && !this.status.equals(statusValue)) {
+      const { roadmapId, timeframeId, initiativeId } = context;
+      if (roadmapId && timeframeId && initiativeId) {
+        const event = new RoadmapItemStatusChanged(
+          roadmapId,
+          timeframeId,
+          initiativeId,
+          this.id,
+          this.status,
+          statusValue
+        );
+        updatedItem.registerEvent(event);
+      }
+    }
+
+    return updatedItem;
+  }
+  
+  /**
+   * Updates the status of this item
+   * @param newStatus The new status
+   * @param context The context information for event generation
+   * @returns A new RoadmapItem with updated status
+   */
+  public updateStatus(
+    newStatus: Status | string,
+    context: {
+      roadmapId: string;
+      timeframeId: string;
+      initiativeId: string;
+    }
+  ): RoadmapItem {
+    const statusValue = typeof newStatus === 'string' 
+      ? Status.fromString(newStatus) 
+      : newStatus;
+      
+    // If status hasn't changed, return this item
+    if (this.status.equals(statusValue)) {
+      return this;
+    }
+    
+    // Create new item with updated status
+    const updatedItem = new RoadmapItem(
+      this.id,
+      this.title,
+      this.description,
+      statusValue,
+      this.relatedEntities,
+      this.notes
+    );
+    
+    // Register the status changed event
+    const event = new RoadmapItemStatusChanged(
+      context.roadmapId,
+      context.timeframeId,
+      context.initiativeId,
+      this.id,
+      this.status,
+      statusValue
+    );
+    
+    updatedItem.registerEvent(event);
+    return updatedItem;
   }
 
   /**

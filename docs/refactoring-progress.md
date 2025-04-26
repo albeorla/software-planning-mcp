@@ -99,6 +99,40 @@ This document summarizes our refactoring progress in improving the architecture 
 - Better encapsulation of domain rules
 - More expressive code
 
+### 6. Domain Events Implementation
+
+**Problem:** No mechanism existed for entities to communicate state changes across aggregates.
+
+**Solution:**
+- Created domain event infrastructure (DomainEvent interface and EventDispatcher)
+- Implemented Entity base class for event registration
+- Added concrete event classes for roadmap domain events
+- Updated entities to register events during state changes
+- Created event handlers for cross-aggregate coordination
+
+**Results:**
+- Improved decoupling between aggregates
+- Better handling of cross-aggregate business rules
+- More explicit state change notifications
+- Enhanced maintainability and extensibility
+
+### 7. Domain Services Implementation
+
+**Problem:** Business rules spanning multiple entities were placed in application services.
+
+**Solution:**
+- Created RoadmapPriorityService for priority-related business rules
+- Created RoadmapTimeframeService for timeframe-related business rules
+- Created RoadmapValidationService for comprehensive roadmap validation
+- Updated application services to use domain services
+- Moved cross-entity business rules from application to domain layer
+
+**Results:**
+- Better encapsulation of domain rules
+- More explicit handling of cross-entity operations
+- Improved separation of concerns
+- Enhanced domain model expressiveness
+
 ## Current Status
 
 Our refactoring efforts have successfully addressed several key architectural issues:
@@ -106,36 +140,58 @@ Our refactoring efforts have successfully addressed several key architectural is
 1. **✅ File organization** - Large files have been split into focused components
 2. **✅ Service organization** - CQRS pattern applied to separate read/write concerns
 3. **✅ Value objects** - Primitive types replaced with rich domain objects
-4. **✅ Code quality enforcement** - Automated checks for file size and type safety
+4. **✅ Domain events** - Added event-based communication between aggregates
+5. **✅ Domain services** - Implemented proper domain services for cross-entity rules
+6. **✅ Code quality enforcement** - Automated checks for file size and type safety
+
+## Current Challenges
+
+Despite significant progress, we still have a few areas that need improvement:
+
+### 1. Large Command Service Files
+
+Two files still exceed our recommended line limit:
+
+- **CompositeRoadmapCommandService.ts** (374 lines) - Needs further splitting into more specialized components
+- **RoadmapCommandService.ts** (371 lines) - Needs refactoring to reduce complexity
+
+### 2. Template-Related Files
+
+Several template-related files remain large:
+
+- **DocumentTemplates.ts** (485 lines)
+- **TemplateService.ts** (336 lines)
+
+These should be considered for future refactoring initiatives.
 
 ## Next Steps
 
 The following refactoring initiatives are prioritized for future work:
 
-1. **Domain Events (Medium Priority)**
-   - Set up event infrastructure (DomainEvent interface and EventDispatcher)
-   - Implement event creation in entities
-   - Create event handlers for cross-aggregate coordination
+1. **Command Service Refactoring (High Priority)**
+   - Split CompositeRoadmapCommandService.ts into smaller, more focused components
+   - Refactor RoadmapCommandService.ts to reduce complexity and size
+   - Apply the same patterns used in previous refactorings
 
-2. **Domain Services (Medium Priority)**
-   - Implement RoadmapPriorityService and similar services
-   - Move cross-entity business rules from application to domain layer
-   - Enforce domain invariants through dedicated services
+2. **Template System Refactoring (Medium Priority)**
+   - Analyze and refactor DocumentTemplates.ts into smaller components
+   - Split TemplateService.ts into more focused services
+   - Improve template organization and reusability
 
-3. **Continuing Refactoring (Ongoing)**
-   - Continue to identify and split large files (>300 lines)
-   - Apply similar patterns to other parts of the codebase
-   - Enhance documentation as code evolves
+3. **Test Coverage Improvements (Medium Priority)**
+   - Implement comprehensive unit tests for domain entities and value objects
+   - Add integration tests for application services
+   - Ensure refactored components maintain correct behavior
 
 ## Code Metrics
 
 The following table shows the current state of our largest files:
 
 | File | Current Lines | Original Lines | Reduction |
-|------|---------------|----------------|-----------|
-| src/index.ts | 542 | 542 | 0% |
+|------|---------------|----------------|----------|
+| src/application/roadmap/commands/CompositeRoadmapCommandService.ts | 374 | N/A | N/A |
+| src/application/roadmap/RoadmapCommandService.ts | 371 | N/A | N/A |
 | src/application/DocumentTemplates.ts | 485 | 485 | 0% |
-| src/application/roadmap/RoadmapApplicationService.ts | 458 | N/A | N/A |
 | src/application/TemplateService.ts | 336 | 336 | 0% |
 | src/domain/entities/roadmap/Roadmap.ts | 297 | 689 | 57% |
 | src/application/DocumentationService.ts | 285 | 285 | 0% |
@@ -145,6 +201,6 @@ The following table shows the current state of our largest files:
 
 Our refactoring efforts have significantly improved the codebase structure and maintainability. By applying DDD principles, SOLID practices, and clean code techniques, we've created a more robust architecture that better represents our domain and supports ongoing feature development.
 
-The most significant gains have been in service organization, entity structure, and value object implementation. These improvements provide a solid foundation for future enhancements, including domain events and services.
+The implementation of value objects, domain events, and domain services has enhanced the expressiveness and correctness of our domain model. The automated code quality checks ensure these improvements will be maintained as the codebase evolves.
 
-The automated code quality checks ensure these improvements will be maintained as the codebase evolves, preventing regression to monolithic files and primitive types.
+Our next focus will be on refactoring the remaining large service files, particularly the command services that still exceed our line count guidelines.

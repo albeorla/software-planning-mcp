@@ -1,4 +1,5 @@
 import { Roadmap, RoadmapInitiative } from "../../../domain/entities/roadmap/index.js";
+import { EventDispatcher } from "../../../domain/events/EventDispatcher.js";
 import { IRoadmapRepository } from "../../../domain/repositories/RoadmapRepository.js";
 import { Category, Priority } from "../../../domain/value-objects/index.js";
 
@@ -11,9 +12,66 @@ export class InitiativeCommandService {
    * Creates a new InitiativeCommandService
    * @param roadmapRepository The repository for roadmaps
    */
+  private readonly eventDispatcher: EventDispatcher;
+  
   constructor(
     private readonly roadmapRepository: IRoadmapRepository
-  ) {}
+  ) {
+    this.eventDispatcher = EventDispatcher.getInstance();
+  }
+
+  /**
+   * Moves an initiative from one timeframe to another
+   * @param roadmapId The ID of the roadmap
+   * @param sourceTimeframeId The source timeframe ID
+   * @param targetTimeframeId The target timeframe ID
+   * @param initiativeId The ID of the initiative to move
+   * @returns The updated roadmap or null if not found
+   */
+  public async moveInitiative(
+    roadmapId: string,
+    sourceTimeframeId: string,
+    targetTimeframeId: string,
+    initiativeId: string
+  ): Promise<Roadmap | null> {
+    const roadmap = await this.roadmapRepository.findById(roadmapId);
+    if (!roadmap) {
+      return null;
+    }
+
+    const sourceTimeframe = roadmap.getTimeframe(sourceTimeframeId);
+    if (!sourceTimeframe) {
+      throw new Error(`Source timeframe with ID ${sourceTimeframeId} not found in roadmap ${roadmapId}`);
+    }
+
+    const targetTimeframe = roadmap.getTimeframe(targetTimeframeId);
+    if (!targetTimeframe) {
+      throw new Error(`Target timeframe with ID ${targetTimeframeId} not found in roadmap ${roadmapId}`);
+    }
+
+    const initiative = sourceTimeframe.getInitiative(initiativeId);
+    if (!initiative) {
+      throw new Error(`Initiative with ID ${initiativeId} not found in timeframe ${sourceTimeframeId}`);
+    }
+
+    // Remove from source timeframe
+    const updatedSourceTimeframe = sourceTimeframe.removeInitiative(initiativeId);
+    
+    // Add to target timeframe
+    const updatedTargetTimeframe = targetTimeframe.addInitiative(initiative);
+    
+    // Update roadmap with both timeframe changes
+    let updatedRoadmap = roadmap;
+    updatedRoadmap = updatedRoadmap.removeTimeframe(sourceTimeframeId).addTimeframe(updatedSourceTimeframe);
+    updatedRoadmap = updatedRoadmap.removeTimeframe(targetTimeframeId).addTimeframe(updatedTargetTimeframe);
+    
+    await this.roadmapRepository.save(updatedRoadmap);
+    
+    // Dispatch events generated during this operation
+    this.eventDispatcher.dispatchAll(updatedRoadmap.pullEvents());
+    
+    return updatedRoadmap;
+  }
 
   /**
    * Adds an initiative to a timeframe

@@ -1,4 +1,5 @@
 import { Roadmap, RoadmapItem } from "../../../domain/entities/roadmap/index.js";
+import { EventDispatcher } from "../../../domain/events/EventDispatcher.js";
 import { IRoadmapRepository } from "../../../domain/repositories/RoadmapRepository.js";
 import { Status } from "../../../domain/value-objects/index.js";
 
@@ -11,9 +12,97 @@ export class ItemCommandService {
    * Creates a new ItemCommandService
    * @param roadmapRepository The repository for roadmaps
    */
+  private readonly eventDispatcher: EventDispatcher;
+  
   constructor(
     private readonly roadmapRepository: IRoadmapRepository
-  ) {}
+  ) {
+    this.eventDispatcher = EventDispatcher.getInstance();
+  }
+
+  /**
+   * Moves an item from one initiative to another
+   * @param roadmapId The ID of the roadmap
+   * @param sourceTimeframeId The source timeframe ID
+   * @param sourceInitiativeId The source initiative ID
+   * @param targetTimeframeId The target timeframe ID
+   * @param targetInitiativeId The target initiative ID
+   * @param itemId The ID of the item to move
+   * @returns The updated roadmap or null if not found
+   */
+  public async moveItem(
+    roadmapId: string,
+    sourceTimeframeId: string,
+    sourceInitiativeId: string,
+    targetTimeframeId: string,
+    targetInitiativeId: string,
+    itemId: string
+  ): Promise<Roadmap | null> {
+    const roadmap = await this.roadmapRepository.findById(roadmapId);
+    if (!roadmap) {
+      return null;
+    }
+
+    // Get source path
+    const sourceTimeframe = roadmap.getTimeframe(sourceTimeframeId);
+    if (!sourceTimeframe) {
+      throw new Error(`Source timeframe with ID ${sourceTimeframeId} not found in roadmap ${roadmapId}`);
+    }
+
+    const sourceInitiative = sourceTimeframe.getInitiative(sourceInitiativeId);
+    if (!sourceInitiative) {
+      throw new Error(`Source initiative with ID ${sourceInitiativeId} not found in timeframe ${sourceTimeframeId}`);
+    }
+
+    // Get target path
+    const targetTimeframe = roadmap.getTimeframe(targetTimeframeId);
+    if (!targetTimeframe) {
+      throw new Error(`Target timeframe with ID ${targetTimeframeId} not found in roadmap ${roadmapId}`);
+    }
+
+    const targetInitiative = targetTimeframe.getInitiative(targetInitiativeId);
+    if (!targetInitiative) {
+      throw new Error(`Target initiative with ID ${targetInitiativeId} not found in timeframe ${targetTimeframeId}`);
+    }
+
+    // Get the item from source
+    const item = sourceInitiative.getItem(itemId);
+    if (!item) {
+      throw new Error(`Item with ID ${itemId} not found in initiative ${sourceInitiativeId}`);
+    }
+
+    // Remove from source
+    const updatedSourceInitiative = sourceInitiative.removeItem(itemId);
+    const updatedSourceTimeframe = sourceTimeframe
+      .removeInitiative(sourceInitiativeId)
+      .addInitiative(updatedSourceInitiative);
+
+    // Add to target
+    const updatedTargetInitiative = targetInitiative.addItem(item);
+    const updatedTargetTimeframe = targetTimeframe
+      .removeInitiative(targetInitiativeId)
+      .addInitiative(updatedTargetInitiative);
+
+    // Update roadmap with all changes
+    let updatedRoadmap = roadmap;
+    updatedRoadmap = updatedRoadmap
+      .removeTimeframe(sourceTimeframeId)
+      .addTimeframe(updatedSourceTimeframe);
+    
+    // If target is different from source, update it too
+    if (sourceTimeframeId !== targetTimeframeId) {
+      updatedRoadmap = updatedRoadmap
+        .removeTimeframe(targetTimeframeId)
+        .addTimeframe(updatedTargetTimeframe);
+    }
+
+    await this.roadmapRepository.save(updatedRoadmap);
+    
+    // Dispatch any events generated during this operation
+    this.eventDispatcher.dispatchAll(updatedRoadmap.pullEvents());
+    
+    return updatedRoadmap;
+  }
 
   /**
    * Adds an item to an initiative

@@ -1,9 +1,3 @@
 File,Lines
-src/application/roadmap/RoadmapCommandService.ts,550
-src/index.ts,541
-src/application/DocumentTemplates.ts,484
-src/application/roadmap/RoadmapApplicationService.ts,457
-src/application/RoadmapService.ts,454
-src/governance/handlers/planning/roadmap/RoadmapManagementHandlers.ts,394
-src/application/roadmap/commands/CompositeRoadmapCommandService.ts,378
-src/application/TemplateService.ts,335
+src/application/roadmap/commands/CompositeRoadmapCommandService.ts,374
+src/application/roadmap/RoadmapCommandService.ts,371
