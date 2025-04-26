@@ -141,7 +141,7 @@ The code has been refactored to use specialized handlers organized by bounded co
      - ✅ Created RoadmapApplicationService as a facade combining both services
      - ✅ Applied CQRS pattern to separate read/write operations
      - ✅ Maintained backward compatibility with deprecation notices
-   - Create value objects for Priority, Status, etc.
+   - ✅ Created value objects for Priority, Status, and Category
    - Implement domain events for cross-aggregate communication
    - Add domain services for cross-entity operations
 

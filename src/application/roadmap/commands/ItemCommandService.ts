@@ -1,5 +1,6 @@
 import { Roadmap, RoadmapItem } from "../../../domain/entities/roadmap/index.js";
 import { IRoadmapRepository } from "../../../domain/repositories/RoadmapRepository.js";
+import { Status } from "../../../domain/value-objects/index.js";
 
 /**
  * Service responsible for command operations on Items within Initiatives
@@ -21,7 +22,7 @@ export class ItemCommandService {
    * @param initiativeId The ID of the initiative
    * @param title The title of the item
    * @param description The description of the item
-   * @param status The status of the item
+   * @param status The status of the item (or status string)
    * @param relatedEntities Related entity IDs
    * @param notes Additional notes
    * @returns The updated roadmap or null if not found
@@ -32,7 +33,7 @@ export class ItemCommandService {
     initiativeId: string,
     title: string,
     description: string,
-    status?: string,
+    status?: Status | string,
     relatedEntities?: string[],
     notes?: string
   ): Promise<Roadmap | null> {
@@ -54,7 +55,7 @@ export class ItemCommandService {
     const item = RoadmapItem.create(
       title,
       description,
-      status || "planned",
+      status || Status.PLANNED,
       relatedEntities || [],
       notes || ""
     );
@@ -83,7 +84,7 @@ export class ItemCommandService {
     updates: {
       title?: string;
       description?: string;
-      status?: string;
+      status?: Status | string;
       relatedEntities?: string[];
       notes?: string;
     }

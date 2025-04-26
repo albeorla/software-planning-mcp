@@ -1,4 +1,6 @@
 import { RoadmapItem } from './RoadmapItem.js';
+import { Category } from '../../value-objects/Category.js';
+import { Priority } from '../../value-objects/Priority.js';
 
 /**
  * Represents an initiative in a roadmap timeframe
@@ -20,14 +22,14 @@ export class RoadmapInitiative {
   public readonly description: string;
   
   /**
-   * Category of the initiative (e.g., "Feature", "Architecture", "Tech Debt")
+   * Category of the initiative (e.g., Feature, Architecture, Tech Debt)
    */
-  public readonly category: string;
+  public readonly category: Category;
   
   /**
-   * Priority of the initiative (e.g., "High", "Medium", "Low")
+   * Priority of the initiative (e.g., High, Medium, Low)
    */
-  public readonly priority: string;
+  public readonly priority: Priority;
   
   /**
    * The items within this initiative
@@ -41,8 +43,8 @@ export class RoadmapInitiative {
     id: string,
     title: string,
     description: string,
-    category: string,
-    priority: string,
+    category: Category,
+    priority: Priority,
     items: Map<string, RoadmapItem>
   ) {
     this.id = id;
@@ -59,11 +61,14 @@ export class RoadmapInitiative {
   public static create(
     title: string,
     description: string,
-    category: string,
-    priority: string,
+    category: Category | string,
+    priority: Priority | string,
     initialItems: RoadmapItem[] = []
   ): RoadmapInitiative {
     const id = `initiative-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    
+    const categoryValue = typeof category === 'string' ? Category.fromString(category) : category;
+    const priorityValue = typeof priority === 'string' ? Priority.fromString(priority) : priority;
     
     const itemsMap = new Map<string, RoadmapItem>();
     initialItems.forEach(item => {
@@ -74,8 +79,8 @@ export class RoadmapInitiative {
       id,
       title,
       description,
-      category,
-      priority,
+      categoryValue,
+      priorityValue,
       itemsMap
     );
   }
@@ -93,12 +98,15 @@ export class RoadmapInitiative {
       });
     }
     
+    const categoryValue = typeof data.category === 'string' ? Category.fromString(data.category) : data.category;
+    const priorityValue = typeof data.priority === 'string' ? Priority.fromString(data.priority) : data.priority;
+    
     return new RoadmapInitiative(
       data.id,
       data.title,
       data.description,
-      data.category,
-      data.priority,
+      categoryValue,
+      priorityValue,
       itemsMap
     );
   }
@@ -161,15 +169,29 @@ export class RoadmapInitiative {
   public update(updates: {
     title?: string;
     description?: string;
-    category?: string;
-    priority?: string;
+    category?: Category | string;
+    priority?: Priority | string;
   }): RoadmapInitiative {
+    let categoryValue = this.category;
+    if (updates.category !== undefined) {
+      categoryValue = typeof updates.category === 'string' 
+        ? Category.fromString(updates.category) 
+        : updates.category;
+    }
+
+    let priorityValue = this.priority;
+    if (updates.priority !== undefined) {
+      priorityValue = typeof updates.priority === 'string' 
+        ? Priority.fromString(updates.priority) 
+        : updates.priority;
+    }
+
     return new RoadmapInitiative(
       this.id,
       updates.title ?? this.title,
       updates.description ?? this.description,
-      updates.category ?? this.category,
-      updates.priority ?? this.priority,
+      categoryValue,
+      priorityValue,
       this._items
     );
   }
@@ -182,8 +204,8 @@ export class RoadmapInitiative {
       id: this.id,
       title: this.title,
       description: this.description,
-      category: this.category,
-      priority: this.priority,
+      category: this.category.toString(),
+      priority: this.priority.toString(),
       items: this.items.map(item => item.toJSON())
     };
   }

@@ -1,3 +1,5 @@
+import { Status } from '../../value-objects/Status.js';
+
 /**
  * Represents an item in a roadmap initiative
  */
@@ -18,9 +20,9 @@ export class RoadmapItem {
   public readonly description: string;
   
   /**
-   * Status of the item (e.g., "Planned", "In Progress", "Completed")
+   * Status of the item (e.g., Planned, In Progress, Completed)
    */
-  public readonly status: string;
+  public readonly status: Status;
   
   /**
    * References to related entities (e.g., story IDs, task IDs)
@@ -39,7 +41,7 @@ export class RoadmapItem {
     id: string,
     title: string,
     description: string,
-    status: string,
+    status: Status,
     relatedEntities: string[],
     notes: string
   ) {
@@ -57,17 +59,19 @@ export class RoadmapItem {
   public static create(
     title: string,
     description: string,
-    status: string = "Planned",
+    status: Status | string = Status.PLANNED,
     relatedEntities: string[] = [],
     notes: string = ""
   ): RoadmapItem {
     const id = `roadmap-item-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     
+    const statusValue = typeof status === 'string' ? Status.fromString(status) : status;
+    
     return new RoadmapItem(
       id,
       title,
       description,
-      status,
+      statusValue,
       relatedEntities,
       notes
     );
@@ -81,7 +85,7 @@ export class RoadmapItem {
       data.id,
       data.title,
       data.description,
-      data.status,
+      typeof data.status === 'string' ? Status.fromString(data.status) : data.status,
       data.relatedEntities || [],
       data.notes || ""
     );
@@ -93,15 +97,22 @@ export class RoadmapItem {
   public update(updates: {
     title?: string;
     description?: string;
-    status?: string;
+    status?: Status | string;
     relatedEntities?: string[];
     notes?: string;
   }): RoadmapItem {
+    let statusValue = this.status;
+    if (updates.status !== undefined) {
+      statusValue = typeof updates.status === 'string' 
+        ? Status.fromString(updates.status) 
+        : updates.status;
+    }
+
     return new RoadmapItem(
       this.id,
       updates.title ?? this.title,
       updates.description ?? this.description,
-      updates.status ?? this.status,
+      statusValue,
       updates.relatedEntities ?? this.relatedEntities,
       updates.notes ?? this.notes
     );
@@ -155,7 +166,7 @@ export class RoadmapItem {
       id: this.id,
       title: this.title,
       description: this.description,
-      status: this.status,
+      status: this.status.toString(),
       relatedEntities: this.relatedEntities,
       notes: this.notes
     };

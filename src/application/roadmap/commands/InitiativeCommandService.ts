@@ -1,5 +1,6 @@
 import { Roadmap, RoadmapInitiative } from "../../../domain/entities/roadmap/index.js";
 import { IRoadmapRepository } from "../../../domain/repositories/RoadmapRepository.js";
+import { Category, Priority } from "../../../domain/value-objects/index.js";
 
 /**
  * Service responsible for command operations on Initiatives within Roadmaps
@@ -20,8 +21,8 @@ export class InitiativeCommandService {
    * @param timeframeId The ID of the timeframe
    * @param title The title of the initiative
    * @param description The description of the initiative
-   * @param category The category of the initiative
-   * @param priority The priority of the initiative
+   * @param category The category of the initiative (or category string)
+   * @param priority The priority of the initiative (or priority string)
    * @returns The updated roadmap or null if not found
    */
   public async addInitiative(
@@ -29,8 +30,8 @@ export class InitiativeCommandService {
     timeframeId: string,
     title: string,
     description: string,
-    category: string,
-    priority: string
+    category: Category | string,
+    priority: Priority | string
   ): Promise<Roadmap | null> {
     const roadmap = await this.roadmapRepository.findById(roadmapId);
     if (!roadmap) {
@@ -42,6 +43,7 @@ export class InitiativeCommandService {
       throw new Error(`Timeframe with ID ${timeframeId} not found in roadmap ${roadmapId}`);
     }
 
+    // Category and Priority will be converted in the factory method if needed
     const initiative = RoadmapInitiative.create(title, description, category, priority);
     const updatedTimeframe = timeframe.addInitiative(initiative);
     const updatedRoadmap = roadmap.removeTimeframe(timeframeId).addTimeframe(updatedTimeframe);
@@ -64,8 +66,8 @@ export class InitiativeCommandService {
     updates: {
       title?: string;
       description?: string;
-      category?: string;
-      priority?: string;
+      category?: Category | string;
+      priority?: Priority | string;
     }
   ): Promise<Roadmap | null> {
     const roadmap = await this.roadmapRepository.findById(roadmapId);
