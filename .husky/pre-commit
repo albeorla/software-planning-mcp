@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+
+export PATH="$(dirname -- "$0")/_:$PATH"
 
 # Run the file length check script on staged files
 node scripts/check-file-length.js
 
 # Run lint-staged
-npx lint-staged
+pnpm exec lint-staged
