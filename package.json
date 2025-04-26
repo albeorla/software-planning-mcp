@@ -1,7 +1,7 @@
 {
-  "name": "software-planning-tool",
+  "name": "governance-mcp",
   "version": "0.1.0",
-  "description": "A Model Context Protocol server",
+  "description": "A Governance Model Context Protocol server for software development workflows",
   "private": true,
   "type": "module",
   "bin": {
@@ -27,6 +27,7 @@
     "@modelcontextprotocol/sdk": "0.6.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/inspector": "^0.10.2",
     "@types/node": "^20.11.24",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.1",
